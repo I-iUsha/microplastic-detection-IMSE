@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environment
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Model checkpoints (too large for git — use Git LFS or download separately)
+outputs/models/*.pth
+outputs/imse/*.pkl
+
+# Generated data (reproducible — regenerate with main.py)
+outputs/masks/
+outputs/augmented/
+outputs/results/*.csv
+outputs/results/*.png
+outputs/imse/meta_dataset.csv
+outputs/imse/baseline_comparison.csv
+outputs/imse/*.png
+outputs/field_results/
+outputs/reports/
+
+# Dataset images (too large for git)
+dataset/train/*.jpg
+dataset/valid/*.jpg
+
+# Keep directory structure
+!outputs/models/.gitkeep
+!outputs/imse/.gitkeep
+!outputs/masks/.gitkeep
+!outputs/augmented/.gitkeep
+!outputs/results/.gitkeep
+!outputs/field_results/.gitkeep
+!outputs/reports/.gitkeep
+
+# Jira
+jira_import.csv

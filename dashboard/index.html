@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microplastics Environmental Dashboard</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i data-lucide="droplet" class="logo-icon"></i>
+                <h2>EcoPlast Monitor</h2>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item active" data-target="overview">
+                    <i data-lucide="layout-dashboard"></i> Overview
+                </button>
+                <button class="nav-item" data-target="live-map">
+                    <i data-lucide="map"></i> Live Map
+                </button>
+                <button class="nav-item" data-target="upload-analyze">
+                    <i data-lucide="upload-cloud"></i> Upload & Analyze
+                </button>
+                <button class="nav-item" data-target="reports">
+                    <i data-lucide="file-text"></i> Reports
+                </button>
+                <button class="nav-item" data-target="analytics">
+                    <i data-lucide="bar-chart-2"></i> Analytics
+                </button>
+                <button class="nav-item" data-target="history">
+                    <i data-lucide="history"></i> History
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <h1>Dashboard Overview</h1>
+                <div class="user-profile">
+                    <i data-lucide="bell" class="notification-icon"></i>
+                    <div class="avatar">
+                        <i data-lucide="user"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <!-- Overview Section -->
+                <section id="overview" class="view-section active">
+                    <div class="summary-cards">
+                        <div class="card stat-card">
+                            <div class="stat-icon"><i data-lucide="microscope"></i></div>
+                            <div class="stat-info">
+                                <h3>Total Analyses</h3>
+                                <p class="stat-value">1,248</p>
+                                <span class="trend positive"><i data-lucide="trending-up"></i> +12% this week</span>
+                            </div>
+                        </div>
+                        <div class="card stat-card">
+                            <div class="stat-icon"><i data-lucide="target"></i></div>
+                            <div class="stat-info">
+                                <h3>Particles Detected</h3>
+                                <p class="stat-value">84,302</p>
+                                <span class="trend positive"><i data-lucide="trending-up"></i> +5% this week</span>
+                            </div>
+                        </div>
+                        <div class="card stat-card">
+                            <div class="stat-icon"><i data-lucide="alert-triangle"></i></div>
+                            <div class="stat-info">
+                                <h3>Avg Risk Score</h3>
+                                <p class="stat-value">7.2/10</p>
+                                <span class="trend negative"><i data-lucide="trending-down"></i> -0.4 this week</span>
+                            </div>
+                        </div>
+                        <div class="card stat-card">
+                            <div class="stat-icon"><i data-lucide="check-circle"></i></div>
+                            <div class="stat-info">
+                                <h3>IMSE Accuracy</h3>
+                                <p class="stat-value">60.4%</p>
+                                <span class="trend neutral"><i data-lucide="minus"></i> Stable</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="overview-grid">
+                        <div class="card chart-container">
+                            <h3>Contamination Levels</h3>
+                            <canvas id="contaminationDonut"></canvas>
+                        </div>
+                        <div class="card recent-table-container">
+                            <h3>Recent Results</h3>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Sample ID</th>
+                                        <th>Location</th>
+                                        <th>Particles</th>
+                                        <th>Risk</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-results-body">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Live Map Section -->
+                <section id="live-map" class="view-section">
+                    <div class="card full-height">
+                        <div class="map-controls">
+                            <h3>Interactive Contamination Map <span class="map-data-badge demo" id="map-data-badge">● Demo Data</span></h3>
+                            <div class="layer-toggles">
+                                <label><input type="radio" name="mapLayer" value="heatmap" checked> Heatmap</label>
+                                <label><input type="radio" name="mapLayer" value="choropleth"> Regional</label>
+                                <label><input type="checkbox" id="markerToggle" checked> Show Markers</label>
+                            </div>
+                        </div>
+                        <div id="map" class="map-container"></div>
+                    </div>
+                </section>
+
+                <!-- Upload & Analyze Section -->
+                <section id="upload-analyze" class="view-section">
+                    <div class="upload-grid">
+                        <div class="card upload-area" id="drop-zone">
+                            <i data-lucide="upload-cloud" class="upload-icon"></i>
+                            <h3>Drag & Drop Sample Image</h3>
+                            <p>or click to browse</p>
+                            <input type="file" id="file-input" hidden accept="image/*">
+                            <button class="btn primary">Select Image</button>
+                        </div>
+                        <div class="card analysis-preview">
+                            <h3>Analysis Preview</h3>
+                            <div class="preview-split empty">
+                                <div class="original-preview">
+                                    <span>Original</span>
+                                    <div class="placeholder"><i data-lucide="image"></i></div>
+                                </div>
+                                <div class="mask-preview">
+                                    <span>Mask</span>
+                                    <div class="placeholder"><i data-lucide="layers"></i></div>
+                                </div>
+                            </div>
+                            <button class="btn primary full-width" id="analyze-btn" disabled>Run IMSE Analysis</button>
+                        </div>
+                    </div>
+                    <div class="analysis-results card hidden" id="analysis-results-panel">
+                        <h3>Analysis Results</h3>
+                        <div class="results-grid">
+                            <div class="stats-panel">
+                                <p><strong>Model:</strong> IMSE-Blend (IoU 0.47)</p>
+                                <p><strong>Particle Count:</strong> 342</p>
+                                <p><strong>Risk Score:</strong> 8.1</p>
+                            </div>
+                            <div class="radar-container">
+                                <canvas id="featureRadar"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Reports Section -->
+                <section id="reports" class="view-section">
+                    <div class="card">
+                        <div class="section-header">
+                            <h3>Generated Environmental Reports</h3>
+                            <div class="report-actions-header">
+                                <button class="btn secondary" id="refresh-reports-btn"><i data-lucide="refresh-cw"></i> Refresh</button>
+                            </div>
+                        </div>
+                        <div class="reports-grid" id="reports-grid">
+                            <div class="report-empty-state">
+                                <i data-lucide="file-search" style="width:48px;height:48px;opacity:0.3"></i>
+                                <p>No reports generated yet. Run an analysis to generate your first environmental report.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Report Viewer Modal -->
+                <div class="modal-overlay" id="report-modal" style="display:none">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 id="modal-report-title">Report</h3>
+                            <div class="modal-actions">
+                                <button class="btn secondary small" id="modal-download-md"><i data-lucide="download"></i> Download .md</button>
+                                <button class="btn secondary small" id="modal-download-txt"><i data-lucide="file-text"></i> Download .txt</button>
+                                <button class="btn outline small" id="modal-close"><i data-lucide="x"></i></button>
+                            </div>
+                        </div>
+                        <div class="modal-body" id="modal-report-body">
+                            <!-- Report content rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Section -->
+                <section id="analytics" class="view-section">
+                    <div class="charts-grid">
+                        <div class="card chart-container">
+                            <h3>Model Performance (IoU)</h3>
+                            <canvas id="modelBarChart"></canvas>
+                        </div>
+                        <div class="card chart-container">
+                            <h3>Particle Size Distribution</h3>
+                            <canvas id="sizeBarChart"></canvas>
+                        </div>
+                        <div class="card chart-container full-width">
+                            <h3>Historical Contamination Trend</h3>
+                            <canvas id="trendLineChart"></canvas>
+                        </div>
+                        <div class="card chart-container">
+                            <h3>IMSE Model Usage</h3>
+                            <canvas id="modelPieChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- History Section -->
+                <section id="history" class="view-section">
+                    <div class="card">
+                        <div class="table-header">
+                            <h3>Analysis History</h3>
+                            <div class="search-box">
+                                <i data-lucide="search"></i>
+                                <input type="text" placeholder="Search samples...">
+                            </div>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Sample ID</th>
+                                    <th>Location</th>
+                                    <th>Model Used</th>
+                                    <th>Accuracy</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-body">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- CDNs -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="app.js"></script>
+</body>
+</html>
