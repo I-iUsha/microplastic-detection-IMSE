@@ -50,9 +50,65 @@
             <header class="topbar">
                 <h1>Dashboard Overview</h1>
                 <div class="user-profile">
-                    <i data-lucide="bell" class="notification-icon"></i>
-                    <div class="avatar">
-                        <i data-lucide="user"></i>
+                    <div class="dropdown-wrapper">
+                        <div class="notification-trigger" id="notification-btn">
+                            <i data-lucide="bell" class="notification-icon"></i>
+                            <span class="notification-dot"></span>
+                        </div>
+                        <div class="dropdown-menu notification-dropdown" id="notification-dropdown">
+                            <div class="dropdown-header">
+                                <h4>Notifications</h4>
+                                <span class="badge">3 New</span>
+                            </div>
+                            <div class="notification-list">
+                                <div class="notification-item unread">
+                                    <div class="notif-icon success"><i data-lucide="check-circle-2"></i></div>
+                                    <div class="notif-content">
+                                        <p class="notif-title">Analysis Complete</p>
+                                        <p class="notif-desc">Sample SMP-842 processed with IMSE (UNet, 4 particles).</p>
+                                        <span class="notif-time">10 mins ago</span>
+                                    </div>
+                                </div>
+                                <div class="notification-item unread">
+                                    <div class="notif-icon info"><i data-lucide="map-pin"></i></div>
+                                    <div class="notif-content">
+                                        <p class="notif-title">GPS Lock Acquired</p>
+                                        <p class="notif-desc">NEO-6M module connected with 6 satellites.</p>
+                                        <span class="notif-time">1 hour ago</span>
+                                    </div>
+                                </div>
+                                <div class="notification-item">
+                                    <div class="notif-icon warning"><i data-lucide="alert-triangle"></i></div>
+                                    <div class="notif-content">
+                                        <p class="notif-title">High Risk Alert</p>
+                                        <p class="notif-desc">Delhi NCR location reported risk score 8.5/10.</p>
+                                        <span class="notif-time">Yesterday</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dropdown-wrapper">
+                        <div class="avatar" id="profile-btn">
+                            <i data-lucide="user"></i>
+                        </div>
+                        <div class="dropdown-menu profile-dropdown" id="profile-dropdown">
+                            <div class="profile-header">
+                                <div class="profile-avatar"><i data-lucide="user"></i></div>
+                                <div>
+                                    <h4>Usha</h4>
+                                    <p>Lead Researcher</p>
+                                    <span class="profile-tag">Team Astro</span>
+                                </div>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <ul class="profile-menu">
+                                <li><i data-lucide="user-check"></i> Project Lead</li>
+                                <li><i data-lucide="cpu"></i> Raspberry Pi 5 Connected</li>
+                                <li><i data-lucide="shield-check"></i> IMSE Model v1.0</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </header>

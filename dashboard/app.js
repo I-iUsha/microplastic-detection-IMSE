@@ -541,6 +541,35 @@ historySearchInput?.addEventListener('input', (e) => {
 });
 
 // ============================================================
+// TOPBAR DROPDOWNS (Notification & Profile)
+// ============================================================
+const notifBtn = document.getElementById('notification-btn');
+const notifDropdown = document.getElementById('notification-dropdown');
+const profileBtn = document.getElementById('profile-btn');
+const profileDropdown = document.getElementById('profile-dropdown');
+
+notifBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    profileDropdown?.classList.remove('active');
+    notifDropdown?.classList.toggle('active');
+});
+
+profileBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    notifDropdown?.classList.remove('active');
+    profileDropdown?.classList.toggle('active');
+});
+
+document.addEventListener('click', (e) => {
+    if (!notifDropdown?.contains(e.target) && !notifBtn?.contains(e.target)) {
+        notifDropdown?.classList.remove('active');
+    }
+    if (!profileDropdown?.contains(e.target) && !profileBtn?.contains(e.target)) {
+        profileDropdown?.classList.remove('active');
+    }
+});
+
+// ============================================================
 // STARTUP — Load everything
 // ============================================================
 // Initialize with demo data immediately, then try loading live data
@@ -548,3 +577,4 @@ populateTables();
 initMap();
 loadFieldResults();
 loadReports();
+lucide.createIcons();
