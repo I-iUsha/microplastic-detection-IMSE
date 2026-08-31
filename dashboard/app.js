@@ -256,10 +256,10 @@ function initMap() {
     
     map = L.map('map').setView([20.5937, 78.9629], 5); // Centered on India
 
-    // Dark theme map tiles (CartoDB Dark Matter)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
+    // Clean OpenStreetMap tiles (100% Free, No API Key, No Watermark)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        subdomains: ['a', 'b', 'c'],
         maxZoom: 19
     }).addTo(map);
 

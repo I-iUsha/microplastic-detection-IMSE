@@ -539,7 +539,11 @@ body {
 
 /* Leaflet dark mode overrides */
 .leaflet-container {
-    background: #1e293b;
+    background: #0b1120;
+}
+
+.leaflet-tile {
+    filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
 }
 
 /* Buttons */
