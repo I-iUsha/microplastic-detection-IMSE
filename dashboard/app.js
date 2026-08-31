@@ -527,6 +527,20 @@ document.getElementById('modal-download-txt')?.addEventListener('click', () => {
 document.getElementById('refresh-reports-btn')?.addEventListener('click', loadReports);
 
 // ============================================================
+// HISTORY SEARCH FILTER
+// ============================================================
+const historySearchInput = document.getElementById('history-search-input');
+historySearchInput?.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#history-body tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+});
+
+// ============================================================
 // STARTUP — Load everything
 // ============================================================
 // Initialize with demo data immediately, then try loading live data
