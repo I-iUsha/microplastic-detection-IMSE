@@ -1,4 +1,9 @@
-import serial
+try:
+    import serial
+    HAS_SERIAL = True
+except ImportError:
+    HAS_SERIAL = False
+
 import time
 from datetime import datetime
 
@@ -46,13 +51,15 @@ def convert_to_degrees(raw_value, direction):
 
 def get_serial_port():
     """Auto-detect serial port for GPS on Pi."""
+    if not HAS_SERIAL:
+        return None
     ports = ['/dev/ttyS0', '/dev/ttyAMA0', 'COM3'] # Add COM3 for Windows testing fallback
     for port in ports:
         try:
             s = serial.Serial(port, baudrate=9600, timeout=1)
             s.close()
             return port
-        except (serial.SerialException, FileNotFoundError):
+        except Exception:
             continue
     return None
 

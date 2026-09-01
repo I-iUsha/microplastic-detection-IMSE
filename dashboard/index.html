@@ -58,33 +58,10 @@
                         <div class="dropdown-menu notification-dropdown" id="notification-dropdown">
                             <div class="dropdown-header">
                                 <h4>Notifications</h4>
-                                <span class="badge">3 New</span>
+                                <span class="badge" id="notif-badge">Live</span>
                             </div>
-                            <div class="notification-list">
-                                <div class="notification-item unread">
-                                    <div class="notif-icon success"><i data-lucide="check-circle-2"></i></div>
-                                    <div class="notif-content">
-                                        <p class="notif-title">Analysis Complete</p>
-                                        <p class="notif-desc">Sample SMP-842 processed with IMSE (UNet, 4 particles).</p>
-                                        <span class="notif-time">10 mins ago</span>
-                                    </div>
-                                </div>
-                                <div class="notification-item unread">
-                                    <div class="notif-icon info"><i data-lucide="map-pin"></i></div>
-                                    <div class="notif-content">
-                                        <p class="notif-title">GPS Lock Acquired</p>
-                                        <p class="notif-desc">NEO-6M module connected with 6 satellites.</p>
-                                        <span class="notif-time">1 hour ago</span>
-                                    </div>
-                                </div>
-                                <div class="notification-item">
-                                    <div class="notif-icon warning"><i data-lucide="alert-triangle"></i></div>
-                                    <div class="notif-content">
-                                        <p class="notif-title">High Risk Alert</p>
-                                        <p class="notif-desc">Delhi NCR location reported risk score 8.5/10.</p>
-                                        <span class="notif-time">Yesterday</span>
-                                    </div>
-                                </div>
+                            <div class="notification-list" id="notification-list">
+                                <!-- Populated dynamically by JS -->
                             </div>
                         </div>
                     </div>
@@ -121,32 +98,32 @@
                             <div class="stat-icon"><i data-lucide="microscope"></i></div>
                             <div class="stat-info">
                                 <h3>Total Analyses</h3>
-                                <p class="stat-value">1,248</p>
-                                <span class="trend positive"><i data-lucide="trending-up"></i> +12% this week</span>
+                                <p class="stat-value" id="kpi-total-analyses">1</p>
+                                <span class="trend positive"><i data-lucide="trending-up"></i> Live Samples</span>
                             </div>
                         </div>
                         <div class="card stat-card">
                             <div class="stat-icon"><i data-lucide="target"></i></div>
                             <div class="stat-info">
                                 <h3>Particles Detected</h3>
-                                <p class="stat-value">84,302</p>
-                                <span class="trend positive"><i data-lucide="trending-up"></i> +5% this week</span>
+                                <p class="stat-value" id="kpi-total-particles">4</p>
+                                <span class="trend positive"><i data-lucide="trending-up"></i> Total Count</span>
                             </div>
                         </div>
                         <div class="card stat-card">
                             <div class="stat-icon"><i data-lucide="alert-triangle"></i></div>
                             <div class="stat-info">
                                 <h3>Avg Risk Score</h3>
-                                <p class="stat-value">7.2/10</p>
-                                <span class="trend negative"><i data-lucide="trending-down"></i> -0.4 this week</span>
+                                <p class="stat-value" id="kpi-avg-risk">6.1/10</p>
+                                <span class="trend neutral"><i data-lucide="shield-alert"></i> Environmental Index</span>
                             </div>
                         </div>
                         <div class="card stat-card">
                             <div class="stat-icon"><i data-lucide="check-circle"></i></div>
                             <div class="stat-info">
                                 <h3>IMSE Accuracy</h3>
-                                <p class="stat-value">60.4%</p>
-                                <span class="trend neutral"><i data-lucide="minus"></i> Stable</span>
+                                <p class="stat-value" id="kpi-accuracy">60.4%</p>
+                                <span class="trend positive"><i data-lucide="check"></i> Optimal Blend</span>
                             </div>
                         </div>
                     </div>
@@ -203,26 +180,28 @@
                         </div>
                         <div class="card analysis-preview">
                             <h3>Analysis Preview</h3>
-                            <div class="preview-split empty">
-                                <div class="original-preview">
+                            <div class="preview-split empty" id="preview-split-box">
+                                <div class="original-preview" id="original-preview-container">
                                     <span>Original</span>
-                                    <div class="placeholder"><i data-lucide="image"></i></div>
+                                    <div class="placeholder" id="original-placeholder"><i data-lucide="image"></i></div>
                                 </div>
-                                <div class="mask-preview">
-                                    <span>Mask</span>
-                                    <div class="placeholder"><i data-lucide="layers"></i></div>
+                                <div class="mask-preview" id="mask-preview-container">
+                                    <span>Segmentation Mask</span>
+                                    <div class="placeholder" id="mask-placeholder"><i data-lucide="layers"></i></div>
                                 </div>
                             </div>
                             <button class="btn primary full-width" id="analyze-btn" disabled>Run IMSE Analysis</button>
                         </div>
                     </div>
                     <div class="analysis-results card hidden" id="analysis-results-panel">
-                        <h3>Analysis Results</h3>
+                        <h3>IMSE Analysis Results</h3>
                         <div class="results-grid">
                             <div class="stats-panel">
-                                <p><strong>Model:</strong> IMSE-Blend (IoU 0.47)</p>
-                                <p><strong>Particle Count:</strong> 342</p>
-                                <p><strong>Risk Score:</strong> 8.1</p>
+                                <p><strong>Selected Model:</strong> <span id="res-model" style="color:var(--primary);font-weight:700">UNet</span></p>
+                                <p><strong>Particles Detected:</strong> <span id="res-particles">12</span></p>
+                                <p><strong>Contamination Level:</strong> <span id="res-level" class="status-badge status-med">Moderate</span></p>
+                                <p><strong>Risk Assessment:</strong> <span id="res-risk">5.8 / 10</span></p>
+                                <p><strong>Image Quality:</strong> <span id="res-quality" style="color:var(--text-muted);font-size:0.8rem">Blur: High | Contrast: Optimal</span></p>
                             </div>
                             <div class="radar-container">
                                 <canvas id="featureRadar"></canvas>

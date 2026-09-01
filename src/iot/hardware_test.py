@@ -1,13 +1,24 @@
 import os
 import sys
-import psutil
+import platform
 import torch
-from .microscope import get_microscope_device, capture_image
-from .gps_reader import get_serial_port, get_gps_location
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import src.config as config
+
+try:
+    from src.iot.microscope import get_microscope_device, capture_image
+    from src.iot.gps_reader import get_serial_port, get_gps_location
+except ImportError:
+    from microscope import get_microscope_device, capture_image
+    from gps_reader import get_serial_port, get_gps_location
 
 def generate_hardware_report():
     report_lines = []
@@ -15,21 +26,28 @@ def generate_hardware_report():
     
     # OS & System Info
     report_lines.append("\n[System Info]")
-    report_lines.append(f"OS: {sys.platform}")
+    report_lines.append(f"OS: {platform.system()} {platform.release()} ({sys.platform})")
+    report_lines.append(f"Python: {sys.version.split()[0]}")
+    report_lines.append(f"PyTorch Version: {torch.__version__}")
+    report_lines.append(f"CUDA Available: {torch.cuda.is_available()}")
     
-    # CPU
-    cpu_percent = psutil.cpu_percent(interval=1)
-    report_lines.append(f"CPU Usage: {cpu_percent}%")
-    
-    # RAM
-    ram = psutil.virtual_memory()
-    report_lines.append(f"Total RAM: {ram.total / (1024**3):.2f} GB")
-    report_lines.append(f"Available RAM: {ram.available / (1024**3):.2f} GB")
-    
-    # Storage
-    disk = psutil.disk_usage('/')
-    report_lines.append(f"Total Storage: {disk.total / (1024**3):.2f} GB")
-    report_lines.append(f"Free Storage: {disk.free / (1024**3):.2f} GB")
+    if HAS_PSUTIL:
+        # CPU
+        cpu_percent = psutil.cpu_percent(interval=0.5)
+        report_lines.append(f"CPU Usage: {cpu_percent}%")
+        
+        # RAM
+        ram = psutil.virtual_memory()
+        report_lines.append(f"Total RAM: {ram.total / (1024**3):.2f} GB")
+        report_lines.append(f"Available RAM: {ram.available / (1024**3):.2f} GB")
+        
+        # Storage
+        disk_path = os.path.abspath(os.sep)
+        disk = psutil.disk_usage(disk_path)
+        report_lines.append(f"Total Storage: {disk.total / (1024**3):.2f} GB")
+        report_lines.append(f"Free Storage: {disk.free / (1024**3):.2f} GB")
+    else:
+        report_lines.append("Resource Monitor (psutil): Not installed (optional)")
     
     # Test Microscope
     report_lines.append("\n[Microscope Test]")
@@ -60,10 +78,13 @@ def generate_hardware_report():
 
     # Test Model Loading
     report_lines.append("\n[Model Loading Test]")
-    if ram.total < 4 * (1024**3) - (500*1024**2): # roughly < 3.5GB
-        report_lines.append("Warning: System RAM is low. Model loading might fail.")
+    if HAS_PSUTIL:
+        if ram.total < 4 * (1024**3) - (500*1024**2): # roughly < 3.5GB
+            report_lines.append("Warning: System RAM is low. Model loading might fail.")
+        else:
+            report_lines.append("System RAM sufficient for 4GB Pi 5 requirement.")
     else:
-        report_lines.append("System RAM sufficient for 4GB Pi 5 requirement.")
+        report_lines.append("Checking model checkpoints:")
         
     # Check model files existence
     for model_name in config.MODEL_NAMES:

@@ -292,8 +292,34 @@ def generate_report(
         report += "GPS coordinates not available for this sample. Geospatial analysis requires location data.\n"
 
     report_path = os.path.join(config.REPORTS_DIR, f"report_{sample_id}.md")
-    with open(report_path, 'w') as f:
+    with open(report_path, 'w', encoding='utf-8') as f:
         f.write(report)
+
+    # Update index.json in REPORTS_DIR so dashboard can discover reports
+    try:
+        index_path = os.path.join(config.REPORTS_DIR, "index.json")
+        reports_list = []
+        if os.path.exists(index_path):
+            try:
+                with open(index_path, 'r', encoding='utf-8') as f:
+                    reports_list = json.load(f)
+            except Exception:
+                reports_list = []
+
+        fname = f"report_{sample_id}.md"
+        # Remove existing if present to update
+        reports_list = [r for r in reports_list if r.get('name') != fname]
+        reports_list.insert(0, {
+            'name': fname,
+            'sample_id': sample_id,
+            'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'content': report
+        })
+
+        with open(index_path, 'w', encoding='utf-8') as f:
+            json.dump(reports_list, f, indent=2)
+    except Exception as e:
+        print(f"Warning: Could not update reports index.json: {e}")
 
     print(f"Report saved to {report_path}")
     return report_path

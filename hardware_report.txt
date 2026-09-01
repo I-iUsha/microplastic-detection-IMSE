@@ -1,0 +1,21 @@
+=== Hardware Diagnostic Report ===
+
+[System Info]
+OS: Windows 11 (win32)
+Python: 3.14.2
+PyTorch Version: 2.13.0+cpu
+CUDA Available: False
+Resource Monitor (psutil): Not installed (optional)
+
+[Microscope Test]
+Microscope detected at index 0
+Capture Test: SUCCESS
+
+[GPS Test]
+GPS: NOT DETECTED
+
+[Model Loading Test]
+Checking model checkpoints:
+Found UNet checkpoint (93.38 MB)
+Found DeepLabV3Plus checkpoint (85.76 MB)
+Found LinkNet checkpoint (83.23 MB)

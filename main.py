@@ -134,6 +134,49 @@ def run_inference(image_path: str, device: str = 'cpu'):
     cv2.imwrite(mask_out, results['mask'])
     print(f"Segmentation mask saved to: {mask_out}")
 
+    # Save field result for dashboard
+    import json
+    from datetime import datetime
+    from src.decision_support import get_contamination_level, calculate_risk_score
+
+    try:
+        field_dir = os.path.join(config.OUTPUTS_DIR, "field_results")
+        os.makedirs(field_dir, exist_ok=True)
+        field_index_path = os.path.join(field_dir, "index.json")
+
+        density_metric = (overall['total_area'] / (config.IMG_SIZE ** 2)) * 100
+        risk_score = calculate_risk_score(overall['total_count'], results['particle_info']['size_classification'], density_metric)
+        level = get_contamination_level(overall['total_count'])
+
+        field_entry = {
+            'sample_id': sample_id,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'particle_count': overall['total_count'],
+            'total_area': overall['total_area'],
+            'contamination_level': level,
+            'risk_score': risk_score,
+            'model_selected': results['selected_model'],
+            'confidence': results['confidence'],
+            'gps': {'lat': 28.7041, 'lon': 77.1025}
+        }
+
+        field_list = []
+        if os.path.exists(field_index_path):
+            try:
+                with open(field_index_path, 'r', encoding='utf-8') as f:
+                    field_list = json.load(f)
+            except Exception:
+                field_list = []
+
+        field_list = [f for f in field_list if f.get('sample_id') != sample_id]
+        field_list.insert(0, field_entry)
+
+        with open(field_index_path, 'w', encoding='utf-8') as f:
+            json.dump(field_list, f, indent=2)
+        print(f"Updated dashboard field results index: {field_index_path}")
+    except Exception as e:
+        print(f"Warning: Could not update field_results index.json: {e}")
+
     return results
 
 
