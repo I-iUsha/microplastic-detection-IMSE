@@ -25,20 +25,14 @@ env/
 Thumbs.db
 desktop.ini
 
-# Model checkpoints (too large for git — use Git LFS or download separately)
+# Heavy PyTorch Model checkpoints (>80MB each — keep on disk or download separately)
 outputs/models/*.pth
-outputs/imse/*.pkl
 
-# Generated data (reproducible — regenerate with main.py)
+# Heavy raw image folders (reproducible with main.py)
 outputs/masks/
 outputs/augmented/
-outputs/results/*.csv
-outputs/results/*.png
-outputs/imse/meta_dataset.csv
-outputs/imse/baseline_comparison.csv
-outputs/imse/*.png
-outputs/field_results/
-outputs/reports/
+outputs/field_results/*.jpg
+outputs/field_results/*.png
 
 # Dataset images (too large for git)
 dataset/train/*.jpg

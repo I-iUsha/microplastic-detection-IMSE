@@ -1,0 +1,20 @@
+{
+    "sample_id": "IOT_2026-08-31T17-11-01.434502",
+    "timestamp": "2026-08-31 22:41:02",
+    "gps": {
+        "lat": 37.7749,
+        "lon": -122.4194,
+        "altitude": 10.0,
+        "satellites": 5,
+        "timestamp": "2026-08-31T17:11:01.438025"
+    },
+    "model_selected": "UNet",
+    "confidence": 0.5532918995975198,
+    "particle_count": 4,
+    "total_area": 6732.0,
+    "risk_score": 60.8,
+    "contamination_level": "Low",
+    "image_file": "capture_2026-08-31T17-11-01.434502.jpg",
+    "mask_file": "mask_2026-08-31T17-11-01.434502.png",
+    "report_file": "report_IOT_2026-08-31T17-11-01.434502.md"
+}

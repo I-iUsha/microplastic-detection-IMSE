@@ -1,0 +1,50 @@
+[
+  {
+    "sample_id": "b--12-_jpg.rf.016f209b7c5439a4f12cfde8e1b20114",
+    "timestamp": "2026-08-31 22:45:10",
+    "particle_count": 15,
+    "total_area": 3351.0,
+    "contamination_level": "Moderate",
+    "risk_score": 31.139660644531254,
+    "model_selected": "UNet",
+    "confidence": 0.7145895119447244,
+    "gps": {
+      "lat": 28.7041,
+      "lon": 77.1025
+    }
+  },
+  {
+    "sample_id": "IOT_2026-08-31T17-11-01.434502",
+    "timestamp": "2026-08-31 22:41:02",
+    "gps": {
+      "lat": 37.7749,
+      "lon": -122.4194,
+      "altitude": 10.0,
+      "satellites": 5,
+      "timestamp": "2026-08-31T17:11:01.438025"
+    },
+    "model_selected": "UNet",
+    "confidence": 0.5532918995975198,
+    "particle_count": 4,
+    "total_area": 6732.0,
+    "risk_score": 60.8,
+    "contamination_level": "Low",
+    "image_file": "capture_2026-08-31T17-11-01.434502.jpg",
+    "mask_file": "mask_2026-08-31T17-11-01.434502.png",
+    "report_file": "report_IOT_2026-08-31T17-11-01.434502.md"
+  },
+  {
+    "sample_id": "a--23-_jpg.rf.1ab5e302030f3bb3c08981ca42a8e631",
+    "timestamp": "2026-08-31 22:21:57",
+    "particle_count": 4,
+    "total_area": 6732.0,
+    "contamination_level": "Low",
+    "risk_score": 60.8,
+    "model_selected": "UNet",
+    "confidence": 0.5532918995975198,
+    "gps": {
+      "lat": 28.7041,
+      "lon": 77.1025
+    }
+  }
+]
