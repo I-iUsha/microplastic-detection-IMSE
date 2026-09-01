@@ -26,7 +26,8 @@ sudo raspi-config nonint do_serial_cons 1
 
 # 4. Set up Python virtual environment
 echo "Setting up Python virtual environment..."
-cd ~/major || exit
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$PROJECT_DIR" || exit
 python3 -m venv venv
 source venv/bin/activate
 
