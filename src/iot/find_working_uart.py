@@ -14,6 +14,9 @@ def test_all_loopback():
     print("=" * 65)
     print("Connecting Pin 8 (TX) directly to Pin 10 (RX)...")
 
+    # Ensure GPIO 14 and 15 are set to UART function (a4) on RP1
+    os.system("pinctrl set 14,15 a4 2>/dev/null")
+
     ports = sorted(set(glob.glob('/dev/ttyAMA*') + glob.glob('/dev/serial*') + glob.glob('/dev/ttyS*')))
     print(f"\nScanning ports: {ports}\n")
 
