@@ -5,31 +5,38 @@ except ImportError:
     HAS_SERIAL = False
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 def parse_nmea(sentence):
     """
-    Parse a single NMEA sentence (GPGGA or GPRMC).
+    Parse a single NMEA sentence (GPGGA, GNGGA, GPRMC, GNRMC).
     Returns a dictionary of parsed data or None.
     """
+    if not sentence or not isinstance(sentence, str):
+        return None
+    sentence = sentence.strip()
     parts = sentence.split(',')
     
-    if sentence.startswith('$GPGGA'):
+    # Check for GGA (Fix data: Lat, Lon, Altitude, Satellites)
+    if sentence.startswith('$GPGGA') or sentence.startswith('$GNGGA'):
         if len(parts) > 9 and parts[2] and parts[4]:
-            lat = convert_to_degrees(parts[2], parts[3])
-            lon = convert_to_degrees(parts[4], parts[5])
-            quality = int(parts[6]) if parts[6] else 0
-            satellites = int(parts[7]) if parts[7] else 0
-            alt = float(parts[9]) if parts[9] else 0.0
-            
-            return {
-                'type': 'GGA',
-                'lat': lat,
-                'lon': lon,
-                'altitude': alt,
-                'quality': quality,
-                'satellites': satellites
-            }
+            try:
+                lat = convert_to_degrees(parts[2], parts[3])
+                lon = convert_to_degrees(parts[4], parts[5])
+                quality = int(parts[6]) if parts[6] else 0
+                satellites = int(parts[7]) if parts[7] else 0
+                alt = float(parts[9]) if parts[9] else 0.0
+                
+                return {
+                    'type': 'GGA',
+                    'lat': lat,
+                    'lon': lon,
+                    'altitude': alt,
+                    'quality': quality,
+                    'satellites': satellites
+                }
+            except Exception:
+                pass
     return None
 
 def convert_to_degrees(raw_value, direction):
@@ -53,10 +60,11 @@ def get_serial_port():
     """Auto-detect serial port for GPS on Pi."""
     if not HAS_SERIAL:
         return None
-    ports = ['/dev/ttyS0', '/dev/ttyAMA0', 'COM3'] # Add COM3 for Windows testing fallback
+    # /dev/serial0 is the primary alias on Raspberry Pi 5
+    ports = ['/dev/serial0', '/dev/ttyAMA0', '/dev/ttyAMA10', '/dev/ttyS0', 'COM3']
     for port in ports:
         try:
-            s = serial.Serial(port, baudrate=9600, timeout=1)
+            s = serial.Serial(port, baudrate=9600, timeout=0.5)
             s.close()
             return port
         except Exception:
@@ -70,11 +78,11 @@ def get_gps_location(mock=False):
     """
     if mock:
         return {
-            'lat': 37.7749,
-            'lon': -122.4194,
-            'altitude': 10.0,
-            'satellites': 5,
-            'timestamp': datetime.utcnow().isoformat()
+            'lat': 17.3850,
+            'lon': 78.4867,
+            'altitude': 542.0,
+            'satellites': 8,
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
 
     port = get_serial_port()
@@ -85,10 +93,10 @@ def get_gps_location(mock=False):
     try:
         with serial.Serial(port, baudrate=9600, timeout=2) as ser:
             start_time = time.time()
-            # Wait up to 5 seconds for a valid fix
-            while time.time() - start_time < 5:
+            # Wait up to 6 seconds for a valid fix
+            while time.time() - start_time < 6:
                 line = ser.readline().decode('ascii', errors='ignore').strip()
-                if line.startswith('$GPGGA'):
+                if line.startswith('$GPGGA') or line.startswith('$GNGGA'):
                     data = parse_nmea(line)
                     if data and data['quality'] > 0:
                         return {
@@ -96,9 +104,9 @@ def get_gps_location(mock=False):
                             'lon': data['lon'],
                             'altitude': data['altitude'],
                             'satellites': data['satellites'],
-                            'timestamp': datetime.utcnow().isoformat()
+                            'timestamp': datetime.now(timezone.utc).isoformat()
                         }
-            print("Warning: GPS fix not acquired within timeout.")
+            print("Warning: GPS fix not acquired within timeout (antenna may need open sky).")
             return None
     except Exception as e:
         print(f"Error reading GPS: {e}")
