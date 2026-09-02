@@ -389,75 +389,87 @@ if (radarCtx) {
 let map, markerGroup, heatLayer, choroplethLayer;
 
 function initMap() {
-    if (map) { map.remove(); }
+    if (map) { 
+        map.remove(); 
+        map = null;
+    }
     
     map = L.map('map').setView([20.5937, 78.9629], 5); // Centered on India
 
-    // Clean OpenStreetMap tiles (100% Free, No API Key, No Watermark)
+    // Clean OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         subdomains: ['a', 'b', 'c'],
         maxZoom: 19
     }).addTo(map);
 
-    // Map Data Arrays
     let markers = [];
     let heatData = [];
+    let regionCircles = [];
 
-    // Populate Map Data from live or demo sources
+    // Populate Map Data
     mapData.forEach(city => {
-        // Heatmap data [lat, lng, intensity]
-        heatData.push([city.lat, city.lng, (city.risk || 5) * 10]);
-        
-        // Markers with model info
         let riskVal = parseFloat(city.risk) || 5.0;
+        let fillColor = riskVal > 7 ? '#ef4444' : riskVal > 4 ? '#f59e0b' : '#10b981';
+        let statusLabel = riskVal > 7 ? 'Critical / Exceeds Threshold' : riskVal > 4 ? 'Moderate / Monitored' : 'Compliant / Low Hazard';
+
+        // 1. Heatmap Data Points
+        heatData.push([city.lat, city.lng, riskVal * 20]);
+        
+        // 2. Point Markers
         let marker = L.circleMarker([city.lat, city.lng], {
             radius: 8,
-            fillColor: riskVal > 7 ? colors.danger : riskVal > 4 ? colors.warning : colors.secondary,
+            fillColor: fillColor,
             color: '#fff',
-            weight: 1,
+            weight: 2,
             opacity: 1,
-            fillOpacity: 0.85
+            fillOpacity: 0.95
         }).bindPopup(`
-            <div style="color: #0f172a; font-family: Inter, sans-serif;">
-                <strong style="font-size:14px">${city.name}</strong><br>
+            <div style="color: #0f172a; font-family: Inter, sans-serif; font-size:12px;">
+                <strong style="font-size:14px; color:#0284c7;">${city.name}</strong><br>
                 <strong>Particles:</strong> ${city.parts}<br>
                 <strong>Risk Score:</strong> ${riskVal}/10<br>
                 <strong>Model:</strong> <span style="color:#0ea5e9;font-weight:600">${city.model || 'UNet'}</span>
             </div>
         `);
         markers.push(marker);
-    });
 
-    // Layer Groups
-    markerGroup = L.layerGroup(markers).addTo(map);
-    heatLayer = L.heatLayer(heatData, {radius: 35, blur: 25, maxZoom: 10, gradient: {0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red'}}).addTo(map);
-    
-    // 2. Distinct Regional Choropleth Layer (State / Watershed Risk Zones)
-    let regionCircles = [];
-    mapData.forEach(city => {
-        let riskVal = parseFloat(city.risk) || 5.0;
-        let fillColor = riskVal > 7 ? '#ef4444' : riskVal > 4 ? '#f59e0b' : '#10b981';
-        let statusLabel = riskVal > 7 ? 'Critical / Non-Compliant' : riskVal > 4 ? 'Moderate / Monitored' : 'Compliant / Low Hazard';
-        
+        // 3. Distinct Regional Watershed / Catchment Boundary Rings
         let regionZone = L.circle([city.lat, city.lng], {
-            radius: 85000, // 85 km regional watershed buffer
+            radius: 120000, // 120 km regional buffer
             fillColor: fillColor,
             fillOpacity: 0.35,
             color: fillColor,
-            weight: 2,
-            dashArray: '4, 6'
+            weight: 3,
+            dashArray: '6, 6'
         }).bindPopup(`
-            <div style="color: #0f172a; font-family: Inter, sans-serif; min-width: 180px;">
+            <div style="color: #0f172a; font-family: Inter, sans-serif; min-width: 190px;">
                 <h4 style="margin: 0 0 4px; font-size: 13px; color: #0284c7;">${city.name} Watershed Zone</h4>
                 <p style="margin: 0 0 4px; font-size: 11px;"><strong>Regional Classification:</strong> <span style="color:${fillColor};font-weight:700;">${statusLabel}</span></p>
-                <p style="margin: 0; font-size: 11px;"><strong>Avg Contamination Index:</strong> ${riskVal}/10</p>
-                <small style="color: #64748b;">Statutory CPCB / State Board Jurisdiction</small>
+                <p style="margin: 0 0 4px; font-size: 11px;"><strong>Avg Contamination Index:</strong> ${riskVal} / 10</p>
+                <small style="color: #64748b;">Statutory CPCB / State Pollution Control Jurisdiction</small>
             </div>
         `);
         regionCircles.push(regionZone);
     });
+
+    // Layer Groups
+    markerGroup = L.layerGroup(markers).addTo(map);
+    heatLayer = L.heatLayer(heatData, {
+        radius: 40,
+        blur: 25,
+        maxZoom: 10,
+        gradient: {0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red'}
+    });
     choroplethLayer = L.layerGroup(regionCircles);
+
+    // Initial layer state based on radio button
+    const activeRadio = document.querySelector('input[name="mapLayer"]:checked');
+    if (activeRadio && activeRadio.value === 'choropleth') {
+        map.addLayer(choroplethLayer);
+    } else {
+        map.addLayer(heatLayer);
+    }
 
     if (isLiveData && mapData.length > 0) {
         let bounds = L.latLngBounds(mapData.map(c => [c.lat, c.lng]));
@@ -465,23 +477,31 @@ function initMap() {
     }
 }
 
-// Map Controls Toggle
+// Map Controls Toggle (Attached directly with onclick/onchange)
 document.querySelectorAll('input[name="mapLayer"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-        if(e.target.value === 'heatmap') {
-            map.addLayer(heatLayer);
-            map.removeLayer(choroplethLayer);
+    radio.onclick = function() {
+        if (!map || !heatLayer || !choroplethLayer) return;
+        if (this.value === 'heatmap') {
+            if (map.hasLayer(choroplethLayer)) map.removeLayer(choroplethLayer);
+            if (!map.hasLayer(heatLayer)) map.addLayer(heatLayer);
         } else {
-            map.removeLayer(heatLayer);
-            map.addLayer(choroplethLayer); 
+            if (map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+            if (!map.hasLayer(choroplethLayer)) map.addLayer(choroplethLayer);
         }
-    });
+    };
 });
 
-document.getElementById('markerToggle')?.addEventListener('change', (e) => {
-    if(e.target.checked) map.addLayer(markerGroup);
-    else map.removeLayer(markerGroup);
-});
+const markerToggleEl = document.getElementById('markerToggle');
+if (markerToggleEl) {
+    markerToggleEl.onchange = function() {
+        if (!map || !markerGroup) return;
+        if (this.checked) {
+            if (!map.hasLayer(markerGroup)) map.addLayer(markerGroup);
+        } else {
+            if (map.hasLayer(markerGroup)) map.removeLayer(markerGroup);
+        }
+    };
+}
 
 // ============================================================
 // UPLOAD & ANALYZE INTERACTION
