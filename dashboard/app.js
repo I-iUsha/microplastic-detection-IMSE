@@ -602,7 +602,9 @@ analyzeBtn?.addEventListener('click', () => {
                     (Math.random() * 0.2 + 0.80).toFixed(2)
                 ];
                 radarChartInstance.update();
-                  // Push to live history & notifications
+            }
+
+            // Push to live history & notifications
             const newSampleId = currentUploadedFile ? currentUploadedFile.name.replace(/\.[^/.]+$/, "").substring(0, 18) : `SMP-${Date.now().toString().slice(-4)}`;
             const newRecord = {
                 sample_id: newSampleId,
@@ -772,7 +774,6 @@ function renderReportsGrid() {
     
     reportsGrid.innerHTML = html;
     lucide.createIcons();
-}eateIcons();
 }
 
 function viewReport(index) {
