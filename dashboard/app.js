@@ -663,6 +663,8 @@ analyzeBtn?.addEventListener('click', () => {
             };
 
             rawFieldData.unshift(newRecord);
+            try { localStorage.setItem('ecoplast_samples', JSON.stringify(rawFieldData)); } catch(e) {}
+            
             updateKPIs(rawFieldData);
             updateNotifications(rawFieldData);
             updateChartsWithLiveData(rawFieldData);
@@ -717,6 +719,7 @@ analyzeBtn?.addEventListener('click', () => {
             };
 
             reportFiles = [newReportEntry, ...reportFiles.filter(r => r.name !== newReportEntry.name)];
+            try { localStorage.setItem('ecoplast_reports', JSON.stringify(reportFiles)); } catch(e) {}
             renderReportsGrid();
 
             analyzeBtn.innerHTML = '<i data-lucide="check"></i> Analysis Complete';
@@ -736,29 +739,23 @@ let currentReportContent = '';
 let currentReportName = '';
 
 async function loadReports() {
-    // Keep test_sample_001 as the only baseline default report
-    const knownReports = [
-        'report_test_sample_001.md'
-    ];
-    
-    let reports = [];
-    for (const name of knownReports) {
+    // 1. Check if user already generated reports saved in localStorage
+    const savedReports = localStorage.getItem('ecoplast_reports');
+    if (savedReports) {
         try {
-            const resp = await fetch(`../outputs/reports/${name}`);
-            if (resp.ok) {
-                const content = await resp.text();
-                if (content && !reports.find(r => r.name === name)) {
-                    reports.push({ name: name, content: content });
-                }
+            const parsed = JSON.parse(savedReports);
+            if (parsed && parsed.length > 0) {
+                reportFiles = parsed;
+                renderReportsGrid();
+                return;
             }
-        } catch(e) { /* skip */ }
+        } catch(e) {}
     }
-    
-    // If test_sample_001 couldn't be fetched, provide clean baseline template
-    if (reports.length === 0) {
-        reports.push({
-            name: 'report_test_sample_001.md',
-            content: `# Statutory Environmental Microplastic Assessment Report
+
+    // 2. Default baseline: test_sample_001
+    const baselineReport = {
+        name: 'report_test_sample_001.md',
+        content: `# Statutory Environmental Microplastic Assessment Report
 **Sample ID:** test_sample_001  
 **Audit Date:** 02 September 2026  
 **Monitoring Station:** Station 04 — Hyderabad Urban Basin  
@@ -773,10 +770,10 @@ async function loadReports() {
 - **Total Particles Detected:** 14
 - **Dominant Polymer Profile:** Synthetic microfibers & degraded polyethylene
 `
-        });
-    }
+    };
 
-    reportFiles = reports;
+    reportFiles = [baselineReport];
+    try { localStorage.setItem('ecoplast_reports', JSON.stringify(reportFiles)); } catch(e) {}
     renderReportsGrid();
 }
 
