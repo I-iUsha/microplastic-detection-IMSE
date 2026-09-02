@@ -432,7 +432,32 @@ function initMap() {
     // Layer Groups
     markerGroup = L.layerGroup(markers).addTo(map);
     heatLayer = L.heatLayer(heatData, {radius: 35, blur: 25, maxZoom: 10, gradient: {0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red'}}).addTo(map);
-    choroplethLayer = L.layerGroup();
+    
+    // 2. Distinct Regional Choropleth Layer (State / Watershed Risk Zones)
+    let regionCircles = [];
+    mapData.forEach(city => {
+        let riskVal = parseFloat(city.risk) || 5.0;
+        let fillColor = riskVal > 7 ? '#ef4444' : riskVal > 4 ? '#f59e0b' : '#10b981';
+        let statusLabel = riskVal > 7 ? 'Critical / Non-Compliant' : riskVal > 4 ? 'Moderate / Monitored' : 'Compliant / Low Hazard';
+        
+        let regionZone = L.circle([city.lat, city.lng], {
+            radius: 85000, // 85 km regional watershed buffer
+            fillColor: fillColor,
+            fillOpacity: 0.35,
+            color: fillColor,
+            weight: 2,
+            dashArray: '4, 6'
+        }).bindPopup(`
+            <div style="color: #0f172a; font-family: Inter, sans-serif; min-width: 180px;">
+                <h4 style="margin: 0 0 4px; font-size: 13px; color: #0284c7;">${city.name} Watershed Zone</h4>
+                <p style="margin: 0 0 4px; font-size: 11px;"><strong>Regional Classification:</strong> <span style="color:${fillColor};font-weight:700;">${statusLabel}</span></p>
+                <p style="margin: 0; font-size: 11px;"><strong>Avg Contamination Index:</strong> ${riskVal}/10</p>
+                <small style="color: #64748b;">Statutory CPCB / State Board Jurisdiction</small>
+            </div>
+        `);
+        regionCircles.push(regionZone);
+    });
+    choroplethLayer = L.layerGroup(regionCircles);
 
     if (isLiveData && mapData.length > 0) {
         let bounds = L.latLngBounds(mapData.map(c => [c.lat, c.lng]));
