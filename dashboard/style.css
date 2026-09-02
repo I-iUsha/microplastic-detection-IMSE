@@ -411,9 +411,9 @@ body {
 /* Overview Section */
 .summary-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .stat-card {
@@ -435,7 +435,6 @@ body {
 
 .stat-card:nth-child(2) .stat-icon { background-color: rgba(45, 212, 191, 0.1); color: var(--secondary); }
 .stat-card:nth-child(3) .stat-icon { background-color: rgba(239, 68, 68, 0.1); color: var(--danger); }
-.stat-card:nth-child(4) .stat-icon { background-color: rgba(139, 92, 246, 0.1); color: var(--accent); }
 
 .stat-info h3 {
     font-size: 0.875rem;
@@ -465,17 +464,76 @@ body {
     display: grid;
     grid-template-columns: 1fr 2fr;
     gap: 1.5rem;
+    align-items: stretch;
 }
 
 .chart-container {
     position: relative;
-    height: 300px;
+    height: 380px;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
 }
 .chart-container canvas {
     flex: 1;
-    max-height: 230px;
+    max-height: 280px;
+}
+
+.recent-table-container {
+    height: 380px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.table-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.table-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    background: rgba(14, 165, 233, 0.12);
+    padding: 0.2rem 0.6rem;
+    border-radius: 1rem;
+}
+
+.table-scroll-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+}
+
+/* Custom sleek slider / scrollbar */
+.table-scroll-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+.table-scroll-wrapper::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+}
+.table-scroll-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(14, 165, 233, 0.3);
+    border-radius: 4px;
+}
+.table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(14, 165, 233, 0.6);
+}
+
+.recent-table-container .data-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    z-index: 2;
+    box-shadow: 0 1px 0 var(--border);
 }
 
 /* Tables */

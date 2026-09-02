@@ -126,21 +126,26 @@
                             <canvas id="contaminationDonut"></canvas>
                         </div>
                         <div class="card recent-table-container">
-                            <h3>Recent Results</h3>
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Sample ID</th>
-                                        <th>Location</th>
-                                        <th>Particles</th>
-                                        <th>Risk</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="recent-results-body">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
+                            <div class="table-header-row">
+                                <h3>Recent Results</h3>
+                                <span class="table-badge"><i data-lucide="activity" style="width:12px;height:12px;display:inline;"></i> Live Feed</span>
+                            </div>
+                            <div class="table-scroll-wrapper">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Sample ID</th>
+                                            <th>Location</th>
+                                            <th>Particles</th>
+                                            <th>Risk</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recent-results-body">
+                                        <!-- Populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </section>
