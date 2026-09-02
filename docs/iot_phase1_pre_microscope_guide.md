@@ -10,7 +10,7 @@
 | Item | Status |
 | :--- | :---: |
 | **SanDisk 64 GB microSD Flashed (Pi OS 64-bit)** | ✅ Complete |
-| **Headless SSH Connected (`ssh pi@192.168.1.24`)** | ✅ Complete |
+| **Headless SSH Connected (`ssh pi@10.86.183.19`)** | ✅ Complete |
 | **GitHub Repo Cloned (`microplastic-detection-IMSE`)** | ✅ Complete |
 | **Automated Setup Script (`pi_setup.sh`)** | ✅ Complete |
 | **Model Weights (`.pth` files) Transferred** | 🔄 Next (Step 1) |
@@ -27,7 +27,7 @@ GitHub excludes heavy `.pth` segmentation model checkpoints. Transfer them from 
 1. Open a **NEW PowerShell window on your Laptop** (keep your Pi SSH terminal open in the other window).
 2. Run this command:
    ```powershell
-   scp c:\Users\ADMIN\Desktop\major\outputs\models\*.pth pi@192.168.1.24:~/microplastic-detection-IMSE/outputs/models/
+   scp c:\Users\ADMIN\Desktop\major\outputs\models\*.pth pi@10.86.183.19:~/microplastic-detection-IMSE/outputs/models/
    ```
 3. Type your Pi password when prompted.
 4. **Verify on the Pi**: In your Pi SSH terminal, run:
@@ -75,7 +75,7 @@ Pin 10 (RXD0)  ◄── Green Wire (TX)
 1. Plug the Lenovo USB-C power charger back in.
 2. Wait 60 seconds, then reconnect via SSH from your laptop:
    ```powershell
-   ssh pi@192.168.1.24
+   ssh pi@10.86.183.19
    ```
 3. **Check raw GPS serial stream**:
    ```bash
