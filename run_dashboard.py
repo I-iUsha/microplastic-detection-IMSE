@@ -13,6 +13,14 @@ import socket
 
 
 class DashboardHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        # Disable caching for dynamic field results and reports
+        if self.path.endswith('.json') or self.path.endswith('.md'):
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
+        super().end_headers()
+
     def do_GET(self):
         # Redirect root URL to /dashboard/
         if self.path in ('/', ''):
@@ -20,6 +28,8 @@ class DashboardHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Location', '/dashboard/')
             self.end_headers()
             return
+        if 'field_results/index.json' in self.path:
+            print(f"  📡 [LIVE SYNC] Client {self.client_address[0]} fetched live field results index!")
         super().do_GET()
 
 

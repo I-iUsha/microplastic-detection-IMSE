@@ -1,10 +1,17 @@
-// Initialize Lucide icons
-lucide.createIcons();
+// Initialize Lucide icons safely
+function safeCreateIcons() {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        try { lucide.createIcons(); } catch(e) {}
+    }
+}
+safeCreateIcons();
 
 // Chart defaults for Dark Theme
-Chart.defaults.color = '#94a3b8';
-Chart.defaults.borderColor = '#334155';
-Chart.defaults.font.family = "'Inter', sans-serif";
+if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = '#334155';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+}
 
 // Tab Navigation
 const navItems = document.querySelectorAll('.nav-item');
@@ -295,100 +302,129 @@ const colors = {
     dark: '#1e293b'
 };
 
-// 1. Contamination Donut
-contaminationDonutChart = new Chart(document.getElementById('contaminationDonut'), {
-    type: 'doughnut',
-    data: {
-        labels: ['High Risk', 'Moderate Risk', 'Low Risk'],
-        datasets: [{
-            data: [30, 45, 25],
-            backgroundColor: [colors.danger, colors.warning, colors.secondary],
-            borderWidth: 0,
-            hoverOffset: 4
-        }]
-    },
-    options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-});
+function initCharts() {
+    if (typeof Chart === 'undefined') return;
 
-// 2. Model Performance (Bar)
-modelBarChartInstance = new Chart(document.getElementById('modelBarChart'), {
-    type: 'bar',
-    data: {
-        labels: ['UNet', 'DeepLabV3+', 'LinkNet', 'IMSE-Adaptive'],
-        datasets: [{
-            label: 'Mean IoU Score',
-            data: [0.41, 0.43, 0.42, 0.4655],
-            backgroundColor: colors.primary,
-            borderRadius: 4
-        }]
-    },
-    options: {
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true, max: 0.6 } }
-    }
-});
+    // 1. Contamination Donut
+    try {
+        const donutEl = document.getElementById('contaminationDonut');
+        if (donutEl && !contaminationDonutChart) {
+            contaminationDonutChart = new Chart(donutEl, {
+                type: 'doughnut',
+                data: {
+                    labels: ['High Risk', 'Moderate Risk', 'Low Risk'],
+                    datasets: [{
+                        data: [30, 45, 25],
+                        backgroundColor: [colors.danger, colors.warning, colors.secondary],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+    } catch(e) { console.warn('Donut chart init:', e); }
 
-// 3. Particle Size Distribution
-sizeBarChartInstance = new Chart(document.getElementById('sizeBarChart'), {
-    type: 'bar',
-    data: {
-        labels: ['Small (<100px²)', 'Medium (100-500px²)', 'Large (>500px²)'],
-        datasets: [{
-            label: 'Particle Count',
-            data: [4, 8, 12],
-            backgroundColor: colors.accent,
-            borderRadius: 4
-        }]
-    },
-    options: { maintainAspectRatio: false }
-});
+    // 2. Model Performance (Bar)
+    try {
+        const modelBarEl = document.getElementById('modelBarChart');
+        if (modelBarEl && !modelBarChartInstance) {
+            modelBarChartInstance = new Chart(modelBarEl, {
+                type: 'bar',
+                data: {
+                    labels: ['UNet', 'DeepLabV3+', 'LinkNet', 'IMSE-Adaptive'],
+                    datasets: [{
+                        label: 'Mean IoU Score',
+                        data: [0.41, 0.43, 0.42, 0.4655],
+                        backgroundColor: colors.primary,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 0.6 } }
+                }
+            });
+        }
+    } catch(e) { console.warn('Model bar chart init:', e); }
 
-// 4. Trend Line Chart
-trendLineChartInstance = new Chart(document.getElementById('trendLineChart'), {
-    type: 'line',
-    data: {
-        labels: ['Sample 1', 'Sample 2', 'Sample 3', 'Sample 4', 'Sample 5'],
-        datasets: [{
-            label: 'Contamination Index (Risk / 10)',
-            data: [5.2, 6.1, 5.8, 6.4, 6.1],
-            borderColor: colors.danger,
-            tension: 0.4,
-            fill: true,
-            backgroundColor: 'rgba(239, 68, 68, 0.1)'
-        }]
-    },
-    options: { maintainAspectRatio: false }
-});
+    // 3. Particle Size Distribution
+    try {
+        const sizeBarEl = document.getElementById('sizeBarChart');
+        if (sizeBarEl && !sizeBarChartInstance) {
+            sizeBarChartInstance = new Chart(sizeBarEl, {
+                type: 'bar',
+                data: {
+                    labels: ['Small (<100px²)', 'Medium (100-500px²)', 'Large (>500px²)'],
+                    datasets: [{
+                        label: 'Particle Count',
+                        data: [4, 8, 12],
+                        backgroundColor: colors.accent,
+                        borderRadius: 4
+                    }]
+                },
+                options: { maintainAspectRatio: false }
+            });
+        }
+    } catch(e) { console.warn('Size bar chart init:', e); }
 
-// 5. Model Pie Chart (IMSE Model Selection Distribution)
-modelPieChartInstance = new Chart(document.getElementById('modelPieChart'), {
-    type: 'pie',
-    data: {
-        labels: ['UNet (High Clarity)', 'DeepLabV3+ (Dense/Blurry)', 'LinkNet (Fine Boundaries)'],
-        datasets: [{
-            data: [48, 32, 20],
-            backgroundColor: [colors.primary, colors.secondary, colors.accent],
-            borderWidth: 1,
-            borderColor: '#0f172a'
-        }]
-    },
-    options: {
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 }, padding: 12 }
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return ` ${context.label}: ${context.raw}% of samples`;
+    // 4. Trend Line Chart
+    try {
+        const trendLineEl = document.getElementById('trendLineChart');
+        if (trendLineEl && !trendLineChartInstance) {
+            trendLineChartInstance = new Chart(trendLineEl, {
+                type: 'line',
+                data: {
+                    labels: ['Sample 1', 'Sample 2', 'Sample 3', 'Sample 4', 'Sample 5'],
+                    datasets: [{
+                        label: 'Contamination Index (Risk / 10)',
+                        data: [5.2, 6.1, 5.8, 6.4, 6.1],
+                        borderColor: colors.danger,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)'
+                    }]
+                },
+                options: { maintainAspectRatio: false }
+            });
+        }
+    } catch(e) { console.warn('Trendline chart init:', e); }
+
+    // 5. Model Pie Chart (IMSE Model Selection Distribution)
+    try {
+        const modelPieEl = document.getElementById('modelPieChart');
+        if (modelPieEl && !modelPieChartInstance) {
+            modelPieChartInstance = new Chart(modelPieEl, {
+                type: 'pie',
+                data: {
+                    labels: ['UNet (High Clarity)', 'DeepLabV3+ (Dense/Blurry)', 'LinkNet (Fine Boundaries)'],
+                    datasets: [{
+                        data: [48, 32, 20],
+                        backgroundColor: [colors.primary, colors.secondary, colors.accent],
+                        borderWidth: 1,
+                        borderColor: '#0f172a'
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 }, padding: 12 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.raw}% of samples`;
+                                }
+                            }
+                        }
                     }
                 }
-            }
+            });
         }
-    }
-});
+    } catch(e) { console.warn('Model pie chart init:', e); }
+}
 
 function updateChartsWithLiveData(fieldData) {
     if (!fieldData || fieldData.length === 0) return;
@@ -440,43 +476,48 @@ function updateChartsWithLiveData(fieldData) {
 // 6. Feature Radar (in Upload Section)
 let radarChartInstance;
 const radarCtx = document.getElementById('featureRadar');
-if (radarCtx) {
-    radarChartInstance = new Chart(radarCtx, {
-        type: 'radar',
-        data: {
-            labels: ['Blur Index', 'Contrast', 'Edge Density', 'Particle Density', 'Confidence'],
-            datasets: [{
-                label: 'Sample Profile',
-                data: [0.75, 0.65, 0.80, 0.70, 0.85],
-                backgroundColor: 'rgba(14, 165, 233, 0.25)',
-                borderColor: colors.primary,
-                pointBackgroundColor: colors.primary
-            }]
-        },
-        options: { 
-            maintainAspectRatio: false,
-            scales: { r: { angleLines: { color: '#334155' }, grid: { color: '#334155' }, pointLabels: { color: '#94a3b8' }, ticks: { display: false, max: 1, min: 0 } } }
-        }
-    });
+if (radarCtx && typeof Chart !== 'undefined') {
+    try {
+        radarChartInstance = new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Blur Index', 'Contrast', 'Edge Density', 'Particle Density', 'Confidence'],
+                datasets: [{
+                    label: 'Sample Profile',
+                    data: [0.75, 0.65, 0.80, 0.70, 0.85],
+                    backgroundColor: 'rgba(14, 165, 233, 0.25)',
+                    borderColor: colors.primary,
+                    pointBackgroundColor: colors.primary
+                }]
+            },
+            options: { 
+                maintainAspectRatio: false,
+                scales: { r: { angleLines: { color: '#334155' }, grid: { color: '#334155' }, pointLabels: { color: '#94a3b8' }, ticks: { display: false, max: 1, min: 0 } } }
+            }
+        });
+    } catch(e) { console.warn('Radar chart init:', e); }
 }
 
 // Map Initialization
 let map, markerGroup, heatLayer, choroplethLayer;
 
 function initMap() {
-    if (map) { 
-        map.remove(); 
-        map = null;
-    }
+    if (typeof L === 'undefined' || !document.getElementById('map')) return;
     
-    map = L.map('map').setView([20.5937, 78.9629], 5); // Centered on India
+    try {
+        if (map) { 
+            map.remove(); 
+            map = null;
+        }
+        
+        map = L.map('map').setView([20.5937, 78.9629], 5); // Centered on India
 
-    // Clean OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        subdomains: ['a', 'b', 'c'],
-        maxZoom: 19
-    }).addTo(map);
+        // Clean OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            subdomains: ['a', 'b', 'c'],
+            maxZoom: 19
+        }).addTo(map);
 
     let markers = [];
     let heatData = [];
@@ -550,6 +591,9 @@ function initMap() {
     if (isLiveData && mapData.length > 0) {
         let bounds = L.latLngBounds(mapData.map(c => [c.lat, c.lng]));
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+    }
+    } catch(e) {
+        console.warn('Map initialization warning:', e);
     }
 }
 
@@ -815,23 +859,26 @@ let currentReportContent = '';
 let currentReportName = '';
 
 async function loadReports() {
-    // 1. Check if user already generated reports saved in localStorage
+    // 1. Merge any existing saved reports from localStorage
     const savedReports = localStorage.getItem('ecoplast_reports');
     if (savedReports) {
         try {
             const parsed = JSON.parse(savedReports);
-            if (parsed && parsed.length > 0) {
-                reportFiles = parsed;
-                renderReportsGrid();
-                return;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                parsed.forEach(p => {
+                    if (!reportFiles.some(r => r.name === p.name)) {
+                        reportFiles.push(p);
+                    }
+                });
             }
         } catch(e) {}
     }
 
-    // 2. Default baseline: test_sample_001
-    const baselineReport = {
-        name: 'report_test_sample_001.md',
-        content: `# Statutory Environmental Microplastic Assessment Report
+    // 2. Default baseline: test_sample_001 if empty
+    if (reportFiles.length === 0) {
+        const baselineReport = {
+            name: 'report_test_sample_001.md',
+            content: `# Statutory Environmental Microplastic Assessment Report
 **Sample ID:** test_sample_001  
 **Audit Date:** 02 September 2026  
 **Monitoring Station:** Station 04 — Hyderabad Urban Basin  
@@ -846,9 +893,10 @@ async function loadReports() {
 - **Total Particles Detected:** 14
 - **Dominant Polymer Profile:** Synthetic microfibers & degraded polyethylene
 `
-    };
+        };
+        reportFiles.push(baselineReport);
+    }
 
-    reportFiles = [baselineReport];
     try { localStorage.setItem('ecoplast_reports', JSON.stringify(reportFiles)); } catch(e) {}
     renderReportsGrid();
 }
@@ -1350,14 +1398,30 @@ document.addEventListener('click', (e) => {
 });
 
 // ============================================================
-// STARTUP — Load everything
+// STARTUP — Fail-safe initialization
 // ============================================================
-// Initialize with demo data immediately, then try loading live data
-populateTables();
-initMap();
-loadFieldResults();
-loadReports();
-lucide.createIcons();
+async function initDashboard() {
+    // 1. Initialize baseline tables & charts immediately
+    try { populateTables(); } catch(e) { console.warn(e); }
+    try { initCharts(); } catch(e) { console.warn(e); }
+    try { initMap(); } catch(e) { console.warn(e); }
+    try { await loadReports(); } catch(e) { console.warn(e); }
+    safeCreateIcons();
+
+    // 2. Fetch live IoT field data from server (updates tables, charts, map, reports)
+    try {
+        await loadFieldResults();
+    } catch(e) {
+        console.error('Error loading live field results:', e);
+    }
+}
+
+// Start initialization
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDashboard);
+} else {
+    initDashboard();
+}
 
 // ============================================================
 // AUTO-POLLING — Refresh live field results every 30 seconds
@@ -1382,7 +1446,11 @@ setInterval(async () => {
     if (dot) { dot.style.background = '#f59e0b'; } // amber = fetching
 
     const prevCount = rawFieldData.length;
-    await loadFieldResults();
+    try {
+        await loadFieldResults();
+    } catch(e) {
+        console.warn('Poll error:', e);
+    }
 
     if (dot) {
         const hasNew = rawFieldData.length > prevCount;
