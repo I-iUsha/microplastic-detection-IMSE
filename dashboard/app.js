@@ -69,7 +69,6 @@ let lastFieldDataEtag = null; // For change-detection polling
 let contaminationDonutChart, modelBarChartInstance, sizeBarChartInstance, trendLineChartInstance, modelPieChartInstance;
 
 // Try to load field results JSON files
-// Try to load field results JSON files
 async function loadFieldResults() {
     const possibleUrls = [
         '/outputs/field_results/index.json?t=' + Date.now(),
@@ -79,10 +78,10 @@ async function loadFieldResults() {
         '/outputs/field_results/index.json'
     ];
 
-    let fieldData = null;
+    let fieldData = [];
     for (const url of possibleUrls) {
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 if (Array.isArray(data) && data.length > 0) {
@@ -96,13 +95,28 @@ async function loadFieldResults() {
         }
     }
 
+    // Merge any locally analyzed/uploaded samples from localStorage
+    const savedLocalSamples = localStorage.getItem('ecoplast_samples');
+    if (savedLocalSamples) {
+        try {
+            const parsed = JSON.parse(savedLocalSamples);
+            if (Array.isArray(parsed)) {
+                parsed.forEach(p => {
+                    if (!fieldData.some(d => d.sample_id === p.sample_id)) {
+                        fieldData.push(p);
+                    }
+                });
+            }
+        } catch(e) {}
+    }
+
     if (fieldData && fieldData.length > 0) {
         isLiveData = true;
         rawFieldData = fieldData;
-        mapData = fieldData.filter(d => d.gps && d.gps.lat && d.gps.lon).map(d => ({
+        mapData = fieldData.filter(d => d.gps && d.gps.lat && (d.gps.lon || d.gps.lng)).map(d => ({
             name: d.sample_id ? `Sample ${d.sample_id}` : `Sample ${d.timestamp || ''}`,
             lat: d.gps.lat,
-            lng: d.gps.lon,
+            lng: d.gps.lon || d.gps.lng,
             risk: parseFloat((d.risk_score || 0).toFixed(1)),
             parts: d.particle_count || 0,
             model: d.model_selected || 'IMSE',
@@ -112,11 +126,11 @@ async function loadFieldResults() {
             id: d.sample_id ? (d.sample_id.length > 20 ? d.sample_id.substring(0, 20) + '...' : d.sample_id) : `FLD-${String(i+1).padStart(3,'0')}`,
             fullId: d.sample_id || `FLD-${String(i+1).padStart(3,'0')}`,
             timestamp: d.timestamp || new Date().toISOString().split('T')[0],
-            loc: `${d.gps?.lat ? d.gps.lat.toFixed(4) : '17.4913'}°N, ${d.gps?.lon ? d.gps.lon.toFixed(4) : '78.3416'}°E${d.gps_is_fallback ? ' ⚠ Est.' : ''}`,
+            loc: `${d.gps?.lat ? d.gps.lat.toFixed(4) : '17.4913'}°N, ${d.gps?.lon ? d.gps.lon.toFixed(4) : d.gps?.lng ? d.gps.lng.toFixed(4) : '78.3416'}°E${d.gps_is_fallback ? ' ⚠ Est.' : ''}`,
             parts: d.particle_count || 0,
             risk: parseFloat((d.risk_score || 0).toFixed(1)),
             model: d.model_selected || 'LinkNet',
-            confidence: d.confidence ? (d.confidence * 100).toFixed(1) + '%' : '72.0%',
+            confidence: d.confidence ? (d.confidence > 1 ? d.confidence.toFixed(1) + '%' : (d.confidence * 100).toFixed(1) + '%') : '72.0%',
             status: (d.contamination_level === 'High' || d.contamination_level === 'Critical') ? 'high' : d.contamination_level === 'Moderate' ? 'med' : 'low',
             image_url: d.image_url || null,
             mask_url: d.mask_url || null,
@@ -137,7 +151,7 @@ async function loadFieldResults() {
             // Try fetching the real .md file written by the Pi
             if (d.report_url) {
                 try {
-                    const rRes = await fetch('/' + d.report_url + '?t=' + Date.now());
+                    const rRes = await fetch('/' + d.report_url + '?t=' + Date.now(), { cache: 'no-store' });
                     if (rRes.ok) reportContent = await rRes.text();
                 } catch(e) { /* fallback below */ }
             }
@@ -771,37 +785,56 @@ analyzeBtn?.addEventListener('click', () => {
 
             // Push to live history & notifications
             const newSampleId = currentUploadedFile ? currentUploadedFile.name.replace(/\.[^/.]+$/, "").substring(0, 18) : `SMP-${Date.now().toString().slice(-4)}`;
+            const parsedRisk = parseFloat(riskVal);
             const newRecord = {
                 sample_id: newSampleId,
-                timestamp: new Date().toLocaleTimeString(),
+                timestamp: new Date().toLocaleString(),
                 particle_count: particleCount,
-                risk_score: parseFloat(riskVal) * 10,
+                risk_score: parsedRisk,
                 contamination_level: level,
                 model_selected: selectedModel,
-                confidence: 0.86,
+                confidence: 0.864,
                 gps: { lat: 17.4995 + (Math.random() - 0.5) * 0.05, lon: 78.3899 + (Math.random() - 0.5) * 0.05 }
             };
 
+            // 1. Update live data store & persist
             rawFieldData.unshift(newRecord);
             try { localStorage.setItem('ecoplast_samples', JSON.stringify(rawFieldData)); } catch(e) {}
             
+            // 2. Update Map
+            isLiveData = true;
+            mapData.unshift({
+                name: `Sample ${newSampleId}`,
+                lat: newRecord.gps.lat,
+                lng: newRecord.gps.lon,
+                risk: parsedRisk,
+                parts: particleCount,
+                model: selectedModel,
+                isFallbackGPS: false
+            });
+            updateMapDataBadge();
+            initMap();
+
+            // 3. Update KPIs, Notifications & Charts
             updateKPIs(rawFieldData);
             updateNotifications(rawFieldData);
             updateChartsWithLiveData(rawFieldData);
 
+            // 4. Update Tables (Overview & History)
             recentResults.unshift({
                 id: newSampleId,
                 fullId: newSampleId,
-                loc: `${newRecord.gps.lat.toFixed(4)}, ${newRecord.gps.lon.toFixed(4)}`,
+                timestamp: newRecord.timestamp,
+                loc: `${newRecord.gps.lat.toFixed(4)}°N, ${newRecord.gps.lon.toFixed(4)}°E`,
                 parts: particleCount,
-                risk: riskVal,
+                risk: parsedRisk,
                 model: selectedModel,
                 confidence: '86.4%',
                 status: statusClass.replace('status-', '')
             });
             populateTables();
 
-            // Automatically generate and add Environmental Report to Reports Tab
+            // 5. Automatically generate and add Environmental Report to Reports Tab
             const dynamicReportMd = `# Statutory Environmental Microplastic Assessment Report
 **Sample ID:** ${newSampleId}  
 **Audit Date:** ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })} (${new Date().toLocaleTimeString('en-IN')})  
@@ -846,7 +879,7 @@ analyzeBtn?.addEventListener('click', () => {
             analyzeBtn.disabled = false;
             resultsPanel.classList.remove('hidden');
             resultsPanel.scrollIntoView({ behavior: 'smooth' });
-            lucide.createIcons();
+            safeCreateIcons();
         };
         img.src = currentUploadedDataUrl;
     }, 1200);
