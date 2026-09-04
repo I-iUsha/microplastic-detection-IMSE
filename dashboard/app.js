@@ -238,7 +238,7 @@ async function loadFieldResults() {
         // Auto-inject live field samples into reports viewer (using real report_url first)
         await Promise.all(fieldData.map(async (d) => {
             const reportName = `report_${d.sample_id || 'IOT_field'}.md`;
-            if (reportFiles.some(r => r.name === reportName)) return;
+            if (reportFiles.some(r => r.name === reportName) || deletedReportNames.has(reportName)) return;
 
             let reportContent = null;
 
@@ -281,6 +281,7 @@ async function loadFieldResults() {
 
             reportFiles.unshift({ name: reportName, content: reportContent });
         }));
+        try { localStorage.setItem('ecoplast_reports', JSON.stringify(reportFiles)); } catch(e) {}
         renderReportsGrid();
     } else {
         console.log('No live field results found on server, using demo baseline');
@@ -998,7 +999,26 @@ try {
 } catch(e) {}
 
 async function loadReports() {
-    // 1. Merge any existing saved reports from localStorage (excluding user-deleted reports)
+    // 1. Fetch server outputs/reports/index.json if available
+    try {
+        const res = await fetch('/outputs/reports/index.json?t=' + Date.now(), { cache: 'no-store' });
+        if (res.ok) {
+            const serverReports = await res.json();
+            if (Array.isArray(serverReports)) {
+                serverReports.forEach(sr => {
+                    const rName = sr.name || `report_${sr.sample_id}.md`;
+                    if (!deletedReportNames.has(rName) && !reportFiles.some(r => r.name === rName)) {
+                        reportFiles.push({
+                            name: rName,
+                            content: sr.content || ''
+                        });
+                    }
+                });
+            }
+        }
+    } catch(e) {}
+
+    // 2. Merge any existing saved reports from localStorage (excluding user-deleted reports)
     const savedReports = localStorage.getItem('ecoplast_reports');
     if (savedReports) {
         try {
@@ -1016,7 +1036,7 @@ async function loadReports() {
     // Filter out any deleted reports
     reportFiles = reportFiles.filter(r => !deletedReportNames.has(r.name));
 
-    // 2. Default baseline: test_sample_001 if empty and not deleted
+    // 3. Default baseline: test_sample_001 if empty and not deleted
     if (reportFiles.length === 0 && !deletedReportNames.has('report_test_sample_001.md')) {
         const baselineReport = {
             name: 'report_test_sample_001.md',
@@ -1712,7 +1732,15 @@ document.getElementById('modal-download-txt')?.addEventListener('click', () => {
 });
 
 // Refresh reports button
-document.getElementById('refresh-reports-btn')?.addEventListener('click', () => loadReports());
+document.getElementById('refresh-reports-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('refresh-reports-btn');
+    if (btn) btn.innerHTML = '<i data-lucide="loader"></i> Refreshing...';
+    safeCreateIcons();
+    await loadFieldResults();
+    await loadReports();
+    if (btn) btn.innerHTML = '<i data-lucide="refresh-cw"></i> Refresh';
+    safeCreateIcons();
+});
 
 // Remove reports button & selection toolbar handlers
 document.getElementById('remove-reports-toggle-btn')?.addEventListener('click', () => toggleReportSelectMode());
