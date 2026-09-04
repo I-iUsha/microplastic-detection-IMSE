@@ -28,48 +28,51 @@ def get_microscope_device():
             try:
                 cap = cv2.VideoCapture(index, backend)
                 if cap.isOpened():
-                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-                    time.sleep(0.2)
-                    for _ in range(3):
-                        ret, frame = cap.read()
-                    if ret and frame is not None and frame.size > 0:
-                        cap.release()
-                        return index, backend
                     cap.release()
+                    return index, backend
             except Exception:
                 pass
     return None, None
 
 def capture_image(output_dir=None, filename=None):
     """
-    Capture a single frame from the microscope.
+    Capture a single frame from the microscope directly in a single pass.
     Returns the file path of the captured image or None on failure.
     """
-    device_index, backend = get_microscope_device()
-    if device_index is None:
-        print("Warning: No microscope device detected.")
-        return None
-
-    cap = cv2.VideoCapture(device_index, backend if backend is not None else cv2.CAP_ANY)
-    
-    # Configure USB UVC Camera parameters
-    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-    
-    # Allow sensor auto-exposure to stabilize
-    time.sleep(0.3)
     frame = None
-    ret = False
-    for _ in range(5):
-        ret, frame = cap.read()
-        if ret and frame is not None and frame.size > 0:
-            break
-        time.sleep(0.1)
-        
-    cap.release()
+    backends = [cv2.CAP_V4L2, cv2.CAP_ANY] if sys.platform.startswith('linux') else [cv2.CAP_ANY]
     
-    if not ret or frame is None:
+    for backend in backends:
+        for idx in range(4):
+            try:
+                cap = cv2.VideoCapture(idx, backend)
+                if not cap.isOpened():
+                    cap.release()
+                    continue
+                
+                # Configure USB camera format & resolution
+                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+                
+                # Allow sensor warm-up and grab clear frame
+                time.sleep(0.3)
+                for _ in range(6):
+                    ret, test_frame = cap.read()
+                    if ret and test_frame is not None and test_frame.size > 0:
+                        frame = test_frame
+                        break
+                    time.sleep(0.1)
+                    
+                cap.release()
+                if frame is not None:
+                    break
+            except Exception:
+                pass
+        if frame is not None:
+            break
+
+    if frame is None:
         print("Error: Could not read frame from microscope.")
         return None
         

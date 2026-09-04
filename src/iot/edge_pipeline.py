@@ -28,7 +28,7 @@ def process_capture(mock_hardware=False):
     5. Saves results
     """
     timestamp = int(time.time())
-    dt_str = datetime.utcnow().isoformat().replace(':', '-')
+    dt_str = datetime.now().strftime('%Y%m%d_%H%M%S')
     
     out_dir = os.path.join(config.OUTPUTS_DIR, "field_results")
     os.makedirs(out_dir, exist_ok=True)
