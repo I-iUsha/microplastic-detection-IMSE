@@ -61,42 +61,100 @@ let reportFiles = [];
 let contaminationDonutChart, modelBarChartInstance, sizeBarChartInstance, trendLineChartInstance, modelPieChartInstance;
 
 // Try to load field results JSON files
+// Try to load field results JSON files
 async function loadFieldResults() {
-    try {
-        const response = await fetch('../outputs/field_results/index.json');
-        if (response.ok) {
-            const fieldData = await response.json();
-            if (fieldData && fieldData.length > 0) {
-                isLiveData = true;
-                rawFieldData = fieldData;
-                mapData = fieldData.filter(d => d.gps && d.gps.lat && d.gps.lon).map(d => ({
-                    name: d.sample_id ? `Sample ${d.sample_id}` : `Sample ${d.timestamp || ''}`,
-                    lat: d.gps.lat,
-                    lng: d.gps.lon,
-                    risk: (d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 0).toFixed(1),
-                    parts: d.particle_count || 0,
-                    model: d.model_selected || 'IMSE'
-                }));
-                recentResults = fieldData.slice(0, 10).map((d, i) => ({
-                    id: d.sample_id ? (d.sample_id.length > 16 ? d.sample_id.substring(0, 16) + '...' : d.sample_id) : `FLD-${String(i+1).padStart(3,'0')}`,
-                    fullId: d.sample_id || `FLD-${String(i+1).padStart(3,'0')}`,
-                    timestamp: d.timestamp || new Date().toISOString().split('T')[0],
-                    loc: `${d.gps?.lat?.toFixed(4) || '28.7041'}, ${d.gps?.lon?.toFixed(4) || '77.1025'}`,
-                    parts: d.particle_count || 0,
-                    risk: (d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 0).toFixed(1),
-                    model: d.model_selected || 'UNet',
-                    confidence: d.confidence ? (d.confidence * 100).toFixed(1) + '%' : '60.4%',
-                    status: (d.contamination_level === 'High' || d.contamination_level === 'Critical') ? 'high' : d.contamination_level === 'Moderate' ? 'med' : 'low'
-                }));
+    const possibleUrls = [
+        '/outputs/field_results/index.json?t=' + Date.now(),
+        '../outputs/field_results/index.json?t=' + Date.now(),
+        'outputs/field_results/index.json?t=' + Date.now(),
+        '../outputs/field_results/index.json',
+        '/outputs/field_results/index.json'
+    ];
 
-                updateKPIs(fieldData);
-                updateNotifications(fieldData);
-                updateChartsWithLiveData(fieldData);
+    let fieldData = null;
+    for (const url of possibleUrls) {
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    fieldData = data;
+                    console.log(`Successfully loaded ${data.length} live field results from ${url}`);
+                    break;
+                }
             }
+        } catch(e) {
+            // try next url
         }
-    } catch(e) {
-        console.log('No live field results found, using demo data', e);
     }
+
+    if (fieldData && fieldData.length > 0) {
+        isLiveData = true;
+        rawFieldData = fieldData;
+        mapData = fieldData.filter(d => d.gps && d.gps.lat && d.gps.lon).map(d => ({
+            name: d.sample_id ? `Sample ${d.sample_id}` : `Sample ${d.timestamp || ''}`,
+            lat: d.gps.lat,
+            lng: d.gps.lon,
+            risk: (d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 0).toFixed(1),
+            parts: d.particle_count || 0,
+            model: d.model_selected || 'IMSE'
+        }));
+        recentResults = fieldData.map((d, i) => ({
+            id: d.sample_id ? (d.sample_id.length > 20 ? d.sample_id.substring(0, 20) + '...' : d.sample_id) : `FLD-${String(i+1).padStart(3,'0')}`,
+            fullId: d.sample_id || `FLD-${String(i+1).padStart(3,'0')}`,
+            timestamp: d.timestamp || new Date().toISOString().split('T')[0],
+            loc: `${d.gps?.lat ? d.gps.lat.toFixed(4) : '17.4913'}°N, ${d.gps?.lon ? d.gps.lon.toFixed(4) : '78.3416'}°E`,
+            parts: d.particle_count || 0,
+            risk: (d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 0).toFixed(1),
+            model: d.model_selected || 'LinkNet',
+            confidence: d.confidence ? (d.confidence * 100).toFixed(1) + '%' : '72.0%',
+            status: (d.contamination_level === 'High' || d.contamination_level === 'Critical') ? 'high' : d.contamination_level === 'Moderate' ? 'med' : 'low'
+        }));
+
+        updateKPIs(fieldData);
+        updateNotifications(fieldData);
+        updateChartsWithLiveData(fieldData);
+
+        // Auto-inject live field samples into reports viewer
+        fieldData.forEach(d => {
+            const reportName = `report_${d.sample_id || 'IOT_field'}.md`;
+            if (!reportFiles.some(r => r.name === reportName)) {
+                const liveReportContent = `# Statutory Environmental Microplastic Assessment Report
+**Sample ID:** ${d.sample_id || 'IOT_Field_Sample'}  
+**Audit Timestamp:** ${d.timestamp || new Date().toLocaleString()}  
+**Monitoring Station:** Station 01 — IoT Edge Field Deployment  
+**Geographic Coordinates:** ${d.gps?.lat ? d.gps.lat.toFixed(6) : '17.491303'}° N, ${d.gps?.lon ? d.gps.lon.toFixed(6) : '78.341658'}° E (Hyderabad, Telangana, India)  
+**Selected AI Model:** ${d.model_selected || 'LinkNet'} (Confidence: ${d.confidence ? (d.confidence * 100).toFixed(1) : '72.0'}%)  
+
+---
+
+## 1.0 Executive Statutory Summary
+- **Contamination Classification:** ${d.contamination_level || 'Low'}
+- **Environmental Risk Severity Index:** ${(d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 0).toFixed(1)} / 10
+- **Total Particles Quantified:** ${d.particle_count || 0}
+- **Total Area Coverage:** ${(d.total_area || 0).toFixed(2)} px²
+- **Dominant Morphology:** Polymeric microfibers and environmental fragment particulates
+
+---
+
+## 2.0 Optical Quality & IMSE Diagnostics
+- **Laplacian Blur Variance:** ${d.features?.blur ? Number(d.features.blur).toFixed(2) : '22.80'} (Optical Sharpness Metric)
+- **Mean Gray Brightness:** ${d.features?.brightness ? Number(d.features.brightness).toFixed(2) : '2.16'}
+- **Image Contrast Deviation:** ${d.features?.contrast ? Number(d.features.contrast).toFixed(2) : '13.52'}
+- **Particle Feature Density:** ${d.features?.particle_density ? Number(d.features.particle_density).toFixed(2) : '1.00'}
+- **Canny Edge Density:** ${d.features?.edge_density ? Number(d.features.edge_density).toFixed(4) : '0.0021'}
+`;
+                reportFiles.unshift({
+                    name: reportName,
+                    content: liveReportContent
+                });
+            }
+        });
+        renderReportsGrid();
+    } else {
+        console.log('No live field results found on server, using demo baseline');
+    }
+
     updateMapDataBadge();
     populateTables();
     initMap();
