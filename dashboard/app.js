@@ -68,6 +68,63 @@ let lastFieldDataEtag = null; // For change-detection polling
 // Chart references for dynamic updates
 let contaminationDonutChart, modelBarChartInstance, sizeBarChartInstance, trendLineChartInstance, modelPieChartInstance;
 
+// Helper functions for date sorting & formatting
+function parseTimestampToMs(ts, sampleId) {
+    if (!ts && !sampleId) return 0;
+    
+    if (ts) {
+        // Handle DD/MM/YYYY, HH:MM:SS or DD-MM-YYYY HH:MM:SS
+        const dmyMatch = String(ts).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})[,\s]+(\d{1,2}):(\d{1,2}):?(\d{1,2})?/);
+        if (dmyMatch) {
+            const day = parseInt(dmyMatch[1], 10);
+            const month = parseInt(dmyMatch[2], 10) - 1;
+            const year = parseInt(dmyMatch[3], 10);
+            const hour = parseInt(dmyMatch[4], 10);
+            const min = parseInt(dmyMatch[5], 10);
+            const sec = dmyMatch[6] ? parseInt(dmyMatch[6], 10) : 0;
+            const d = new Date(year, month, day, hour, min, sec);
+            if (!isNaN(d.getTime())) return d.getTime();
+        }
+
+        // Handle YYYY-MM-DD HH:MM:SS or standard ISO
+        const parsed = Date.parse(String(ts).replace(' ', 'T'));
+        if (!isNaN(parsed)) return parsed;
+    }
+
+    if (sampleId) {
+        // e.g. IOT_20260904_163215
+        const idMatch = String(sampleId).match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
+        if (idMatch) {
+            const d = new Date(idMatch[1], parseInt(idMatch[2], 10)-1, idMatch[3], idMatch[4], idMatch[5], idMatch[6]);
+            if (!isNaN(d.getTime())) return d.getTime();
+        }
+        // e.g. 2026-08-31T17-11-01
+        const isoMatch = String(sampleId).match(/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})/);
+        if (isoMatch) {
+            const cleaned = isoMatch[1].replace(/T(\d{2})-(\d{2})-(\d{2})/, 'T$1:$2:$3');
+            const d = Date.parse(cleaned);
+            if (!isNaN(d)) return d;
+        }
+    }
+
+    return 0;
+}
+
+function formatDisplayTimestamp(ts, sampleId) {
+    const ms = parseTimestampToMs(ts, sampleId);
+    if (ms > 0) {
+        const d = new Date(ms);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const h = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        const s = String(d.getSeconds()).padStart(2, '0');
+        return `${y}-${m}-${day} ${h}:${min}:${s}`;
+    }
+    return ts || 'Recent';
+}
+
 // Try to load field results JSON files
 async function loadFieldResults() {
     const possibleUrls = [
@@ -110,6 +167,13 @@ async function loadFieldResults() {
         } catch(e) {}
     }
 
+    // Sort all records chronologically: Newest at top!
+    fieldData.sort((a, b) => {
+        const timeA = parseTimestampToMs(a.timestamp, a.sample_id);
+        const timeB = parseTimestampToMs(b.timestamp, b.sample_id);
+        return timeB - timeA;
+    });
+
     if (fieldData && fieldData.length > 0) {
         isLiveData = true;
         rawFieldData = fieldData;
@@ -125,7 +189,7 @@ async function loadFieldResults() {
         recentResults = fieldData.map((d, i) => ({
             id: d.sample_id ? (d.sample_id.length > 20 ? d.sample_id.substring(0, 20) + '...' : d.sample_id) : `FLD-${String(i+1).padStart(3,'0')}`,
             fullId: d.sample_id || `FLD-${String(i+1).padStart(3,'0')}`,
-            timestamp: d.timestamp || new Date().toISOString().split('T')[0],
+            timestamp: formatDisplayTimestamp(d.timestamp, d.sample_id),
             loc: `${d.gps?.lat ? d.gps.lat.toFixed(4) : '17.4913'}°N, ${d.gps?.lon ? d.gps.lon.toFixed(4) : d.gps?.lng ? d.gps.lng.toFixed(4) : '78.3416'}°E${d.gps_is_fallback ? ' ⚠ Est.' : ''}`,
             parts: d.particle_count || 0,
             risk: parseFloat((d.risk_score || 0).toFixed(1)),
