@@ -998,9 +998,40 @@ async function loadReports() {
     renderReportsGrid();
 }
 
+function extractReportTimestamp(report) {
+    if (!report) return 0;
+    
+    // 1. Try extracting Audit Timestamp / Audit Date from report markdown content
+    if (report.content) {
+        const tsMatch = report.content.match(/\*\*(?:Audit Date|Audit Timestamp):\*\*\s*([^\n\r]+)/i);
+        if (tsMatch) {
+            const rawTs = tsMatch[1].trim();
+            const parsed = parseTimestampToMs(rawTs, report.name);
+            if (parsed > 0) return parsed;
+        }
+    }
+    
+    // 2. Try parsing from report filename (e.g. report_IOT_20260904_163215.md)
+    if (report.name) {
+        const parsed = parseTimestampToMs('', report.name);
+        if (parsed > 0) return parsed;
+    }
+    
+    return 0;
+}
+
 function renderReportsGrid() {
     const reportsGrid = document.getElementById('reports-grid');
     if (!reportsGrid) return;
+
+    // Sort reports chronologically: Newest first!
+    if (Array.isArray(reportFiles) && reportFiles.length > 0) {
+        reportFiles.sort((a, b) => {
+            const timeA = extractReportTimestamp(a);
+            const timeB = extractReportTimestamp(b);
+            return timeB - timeA;
+        });
+    }
 
     if (!reportFiles || reportFiles.length === 0) {
         reportsGrid.innerHTML = `
@@ -1008,7 +1039,7 @@ function renderReportsGrid() {
                 <i data-lucide="file-search" style="width:48px;height:48px;opacity:0.3"></i>
                 <p>No reports found. Run an analysis to generate your first report.</p>
             </div>`;
-        lucide.createIcons();
+        safeCreateIcons();
         return;
     }
 
@@ -1036,7 +1067,7 @@ function renderReportsGrid() {
     });
     
     reportsGrid.innerHTML = html;
-    lucide.createIcons();
+    safeCreateIcons();
 }
 
 function viewReport(index) {

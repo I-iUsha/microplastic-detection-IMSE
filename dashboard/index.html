@@ -216,10 +216,12 @@
                                 <button class="btn secondary" id="refresh-reports-btn"><i data-lucide="refresh-cw"></i> Refresh</button>
                             </div>
                         </div>
-                        <div class="reports-grid" id="reports-grid">
-                            <div class="report-empty-state">
-                                <i data-lucide="file-search" style="width:48px;height:48px;opacity:0.3"></i>
-                                <p>No reports generated yet. Run an analysis to generate your first environmental report.</p>
+                        <div class="reports-scroll-container">
+                            <div class="reports-grid" id="reports-grid">
+                                <div class="report-empty-state">
+                                    <i data-lucide="file-search" style="width:48px;height:48px;opacity:0.3"></i>
+                                    <p>No reports generated yet. Run an analysis to generate your first environmental report.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -274,20 +276,22 @@
                                 <input type="text" id="history-search-input" placeholder="Search samples...">
                             </div>
                         </div>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Sample ID</th>
-                                    <th>Location</th>
-                                    <th>Model Used</th>
-                                    <th>Accuracy</th>
-                                </tr>
-                            </thead>
-                            <tbody id="history-body">
-                                <!-- Populated by JS -->
-                            </tbody>
-                        </table>
+                        <div class="table-scroll-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Sample ID</th>
+                                        <th>Location</th>
+                                        <th>Model Used</th>
+                                        <th>Accuracy</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-body">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
             </div>
