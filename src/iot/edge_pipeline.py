@@ -147,6 +147,15 @@ def batch_process_captures(directory):
     pass
 
 if __name__ == "__main__":
-    print("Running single edge pipeline test...")
-    # Use mock=True for initial test if hardware is unavailable
-    process_capture(mock_hardware=True)
+    import argparse
+    parser = argparse.ArgumentParser(description="Microplastic Detection IoT Edge Pipeline")
+    parser.add_argument("--mock", action="store_true", help="Run in mock mode without hardware")
+    parser.add_argument("--continuous", action="store_true", help="Run continuous capture loop")
+    parser.add_argument("--interval", type=int, default=60, help="Interval in seconds for continuous mode")
+    args = parser.parse_args()
+
+    print("=== Microplastic Detection IoT Edge Pipeline ===")
+    if args.continuous:
+        run_continuous(interval_seconds=args.interval, mock_hardware=args.mock)
+    else:
+        process_capture(mock_hardware=args.mock)
