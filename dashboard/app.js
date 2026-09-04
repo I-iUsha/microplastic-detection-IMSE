@@ -1257,9 +1257,6 @@ function renderReportsGrid(filterQuery = '') {
                     <button class="btn outline small" onclick="event.stopPropagation(); downloadReport(${originalIndex}, 'md')">
                         <i data-lucide="download"></i> .md
                     </button>
-                    <button class="report-card-delete-btn" title="Remove Report" onclick="deleteSingleReport('${report.name}', event)">
-                        <i data-lucide="trash-2" style="width:12px;height:12px;"></i> Delete
-                    </button>
                 </div>
             </div>`;
     });
