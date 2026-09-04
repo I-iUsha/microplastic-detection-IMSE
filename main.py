@@ -180,6 +180,12 @@ def run_inference(image_path: str, device: str = 'cpu'):
     return results
 
 
+def run_dashboard(host: str = "0.0.0.0", port: int = 8000, open_browser: bool = True):
+    """Run the web dashboard HTTP server."""
+    from run_dashboard import start_server
+    start_server(host=host, port=port, open_browser=open_browser)
+
+
 def run_full_train():
     """Run the complete training pipeline (Phases 2-6)."""
     print("\n" + "#" * 60)
@@ -207,6 +213,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  python main.py --mode dashboard          # Run web dashboard on host:port (default 0.0.0.0:8000)
+  python main.py --mode dashboard --port 8080 --host 127.0.0.1
   python main.py --mode train              # Run full training pipeline
   python main.py --mode masks              # Generate masks only
   python main.py --mode augment            # Generate augmentations only
@@ -220,17 +228,22 @@ Examples:
     )
     parser.add_argument(
         '--mode',
-        choices=['train', 'masks', 'augment', 'train_models', 'evaluate',
+        choices=['dashboard', 'train', 'masks', 'augment', 'train_models', 'evaluate',
                  'features', 'build_meta', 'train_imse', 'inference'],
         required=True,
         help='Pipeline mode to run'
     )
     parser.add_argument('--image', type=str, help='Image path for inference mode')
     parser.add_argument('--device', type=str, default='cpu', help='Device (cpu or cuda)')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host IP address to bind for dashboard (default: 0.0.0.0)')
+    parser.add_argument('--port', type=int, default=8000, help='Port number for dashboard (default: 8000)')
+    parser.add_argument('--no-browser', action='store_true', help='Do not automatically open the browser')
 
     args = parser.parse_args()
 
-    if args.mode == 'train':
+    if args.mode == 'dashboard':
+        run_dashboard(host=args.host, port=args.port, open_browser=not args.no_browser)
+    elif args.mode == 'train':
         run_full_train()
     elif args.mode == 'masks':
         run_masks()
@@ -256,3 +269,4 @@ Examples:
 
 if __name__ == "__main__":
     main()
+
