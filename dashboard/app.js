@@ -982,20 +982,30 @@ analyzeBtn?.addEventListener('click', () => {
 });
 
 // ============================================================
-// REPORTS — Load, View, and Download
+// REPORTS — Load, View, Download, and Remove
 // ============================================================
 let currentReportContent = '';
 let currentReportName = '';
+let isReportSelectMode = false;
+let selectedReportNames = new Set();
+let deletedReportNames = new Set();
+
+try {
+    const storedDeleted = localStorage.getItem('ecoplast_deleted_reports');
+    if (storedDeleted) {
+        JSON.parse(storedDeleted).forEach(n => deletedReportNames.add(n));
+    }
+} catch(e) {}
 
 async function loadReports() {
-    // 1. Merge any existing saved reports from localStorage
+    // 1. Merge any existing saved reports from localStorage (excluding user-deleted reports)
     const savedReports = localStorage.getItem('ecoplast_reports');
     if (savedReports) {
         try {
             const parsed = JSON.parse(savedReports);
             if (Array.isArray(parsed) && parsed.length > 0) {
                 parsed.forEach(p => {
-                    if (!reportFiles.some(r => r.name === p.name)) {
+                    if (!deletedReportNames.has(p.name) && !reportFiles.some(r => r.name === p.name)) {
                         reportFiles.push(p);
                     }
                 });
@@ -1003,8 +1013,11 @@ async function loadReports() {
         } catch(e) {}
     }
 
-    // 2. Default baseline: test_sample_001 if empty
-    if (reportFiles.length === 0) {
+    // Filter out any deleted reports
+    reportFiles = reportFiles.filter(r => !deletedReportNames.has(r.name));
+
+    // 2. Default baseline: test_sample_001 if empty and not deleted
+    if (reportFiles.length === 0 && !deletedReportNames.has('report_test_sample_001.md')) {
         const baselineReport = {
             name: 'report_test_sample_001.md',
             content: `# Statutory Environmental Microplastic Assessment Report
@@ -1028,6 +1041,116 @@ async function loadReports() {
 
     try { localStorage.setItem('ecoplast_reports', JSON.stringify(reportFiles)); } catch(e) {}
     renderReportsGrid();
+}
+
+function toggleReportSelectMode(forceState = null) {
+    isReportSelectMode = (forceState !== null) ? forceState : !isReportSelectMode;
+    const toolbar = document.getElementById('reports-delete-toolbar');
+    const toggleBtn = document.getElementById('remove-reports-toggle-btn');
+    
+    if (isReportSelectMode) {
+        if (toolbar) toolbar.style.display = 'flex';
+        if (toggleBtn) {
+            toggleBtn.innerHTML = '<i data-lucide="check"></i> Done Selecting';
+            toggleBtn.style.background = 'rgba(239, 68, 68, 0.2)';
+            toggleBtn.style.color = '#fca5a5';
+        }
+    } else {
+        if (toolbar) toolbar.style.display = 'none';
+        if (toggleBtn) {
+            toggleBtn.innerHTML = '<i data-lucide="trash-2"></i> Remove';
+            toggleBtn.style.background = 'transparent';
+            toggleBtn.style.color = '#f87171';
+        }
+        selectedReportNames.clear();
+    }
+    updateSelectedReportsCount();
+    renderReportsGrid(document.getElementById('report-search-input')?.value || '');
+    safeCreateIcons();
+}
+
+function toggleSelectReport(reportName, e) {
+    if (e) e.stopPropagation();
+    if (selectedReportNames.has(reportName)) {
+        selectedReportNames.delete(reportName);
+    } else {
+        selectedReportNames.add(reportName);
+    }
+    updateSelectedReportsCount();
+    renderReportsGrid(document.getElementById('report-search-input')?.value || '');
+}
+
+function selectAllReports() {
+    if (selectedReportNames.size === reportFiles.length) {
+        selectedReportNames.clear();
+    } else {
+        reportFiles.forEach(r => selectedReportNames.add(r.name));
+    }
+    updateSelectedReportsCount();
+    renderReportsGrid(document.getElementById('report-search-input')?.value || '');
+}
+
+function updateSelectedReportsCount() {
+    const countEl = document.getElementById('selected-reports-count');
+    if (countEl) countEl.textContent = selectedReportNames.size;
+    
+    const selectAllBtn = document.getElementById('reports-select-all-btn');
+    if (selectAllBtn) {
+        if (reportFiles.length > 0 && selectedReportNames.size === reportFiles.length) {
+            selectAllBtn.innerHTML = '<i data-lucide="square"></i> Deselect All';
+        } else {
+            selectAllBtn.innerHTML = '<i data-lucide="check-square"></i> Select All';
+        }
+        safeCreateIcons();
+    }
+}
+
+function deleteSelectedReports() {
+    if (selectedReportNames.size === 0) {
+        alert("Please select at least one report to remove.");
+        return;
+    }
+    
+    const count = selectedReportNames.size;
+    if (!confirm(`Are you sure you want to remove ${count} selected report${count === 1 ? '' : 's'}?`)) {
+        return;
+    }
+
+    selectedReportNames.forEach(name => {
+        deletedReportNames.add(name);
+    });
+
+    reportFiles = reportFiles.filter(r => !selectedReportNames.has(r.name));
+    selectedReportNames.clear();
+
+    // Persist deleted names and remaining reports
+    try {
+        localStorage.setItem('ecoplast_deleted_reports', JSON.stringify(Array.from(deletedReportNames)));
+        localStorage.setItem('ecoplast_reports', JSON.stringify(reportFiles));
+    } catch(e) {}
+
+    toggleReportSelectMode(false);
+}
+
+function deleteSingleReport(reportName, e) {
+    if (e) e.stopPropagation();
+    const cleanName = reportName.replace('report_', '').replace('.md', '').replace(/_/g, ' ');
+    if (!confirm(`Are you sure you want to remove report "${cleanName}"?`)) {
+        return;
+    }
+
+    deletedReportNames.add(reportName);
+    selectedReportNames.delete(reportName);
+    reportFiles = reportFiles.filter(r => r.name !== reportName);
+
+    try {
+        localStorage.setItem('ecoplast_deleted_reports', JSON.stringify(Array.from(deletedReportNames)));
+        localStorage.setItem('ecoplast_reports', JSON.stringify(reportFiles));
+    } catch(e) {}
+
+    updateSelectedReportsCount();
+    renderReportsGrid(document.getElementById('report-search-input')?.value || '');
+    safeCreateIcons();
 }
 
 function extractReportTimestamp(report) {
@@ -1106,23 +1229,36 @@ function renderReportsGrid(filterQuery = '') {
         const displayName = report.name.replace('report_', '').replace('.md', '').replace(/_/g, ' ');
         const timeMs = extractReportTimestamp(report);
         const dateSubtext = timeMs > 0 ? formatDisplayTimestamp(new Date(timeMs).toISOString()) : 'Statutory Environmental Audit Report';
+        const isSelected = selectedReportNames.has(report.name);
         
         html += `
-            <div class="report-card">
-                <div style="display:flex;align-items:center;gap:8px;">
+            <div class="report-card ${isReportSelectMode ? 'select-mode' : ''} ${isSelected ? 'selected' : ''}" 
+                 onclick="${isReportSelectMode ? `toggleSelectReport('${report.name}', event)` : ''}">
+                
+                ${isReportSelectMode ? `
+                    <div class="report-card-checkbox-container">
+                        <input type="checkbox" class="report-card-checkbox" ${isSelected ? 'checked' : ''} 
+                               onclick="toggleSelectReport('${report.name}', event)">
+                    </div>
+                ` : ''}
+
+                <div style="display:flex;align-items:center;gap:8px;padding-right:${isReportSelectMode ? '28px' : '0'};">
                     <i data-lucide="file-text" class="report-icon" style="flex-shrink:0;"></i>
                     <h4 style="margin:0;font-size:0.95rem;font-weight:600;color:var(--text-main);word-break:break-all;">${displayName}</h4>
                 </div>
                 <p style="margin:0;font-size:0.8rem;color:var(--text-muted);">${dateSubtext}</p>
                 <div class="report-btns" style="margin-top:auto;">
-                    <button class="btn primary small" onclick="viewReport(${originalIndex})">
+                    <button class="btn primary small" onclick="event.stopPropagation(); viewReport(${originalIndex})">
                         <i data-lucide="eye"></i> View
                     </button>
-                    <button class="btn secondary small" onclick="exportGovernmentReportPDF(${originalIndex})">
+                    <button class="btn secondary small" onclick="event.stopPropagation(); exportGovernmentReportPDF(${originalIndex})">
                         <i data-lucide="file-check"></i> Gov PDF
                     </button>
-                    <button class="btn outline small" onclick="downloadReport(${originalIndex}, 'md')">
+                    <button class="btn outline small" onclick="event.stopPropagation(); downloadReport(${originalIndex}, 'md')">
                         <i data-lucide="download"></i> .md
+                    </button>
+                    <button class="report-card-delete-btn" title="Remove Report" onclick="deleteSingleReport('${report.name}', event)">
+                        <i data-lucide="trash-2" style="width:12px;height:12px;"></i> Delete
                     </button>
                 </div>
             </div>`;
@@ -1580,6 +1716,12 @@ document.getElementById('modal-download-txt')?.addEventListener('click', () => {
 
 // Refresh reports button
 document.getElementById('refresh-reports-btn')?.addEventListener('click', () => loadReports());
+
+// Remove reports button & selection toolbar handlers
+document.getElementById('remove-reports-toggle-btn')?.addEventListener('click', () => toggleReportSelectMode());
+document.getElementById('reports-select-all-btn')?.addEventListener('click', () => selectAllReports());
+document.getElementById('reports-delete-selected-btn')?.addEventListener('click', () => deleteSelectedReports());
+document.getElementById('reports-cancel-delete-btn')?.addEventListener('click', () => toggleReportSelectMode(false));
 
 // ============================================================
 // REPORT SEARCH FILTER

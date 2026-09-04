@@ -221,6 +221,14 @@
                                     <input type="text" id="report-search-input" placeholder="Search reports...">
                                 </div>
                                 <button class="btn secondary" id="refresh-reports-btn"><i data-lucide="refresh-cw"></i> Refresh</button>
+                                <button class="btn outline" id="remove-reports-toggle-btn" style="border-color: rgba(239, 68, 68, 0.45); color: #f87171;">
+                                    <i data-lucide="trash-2"></i> Remove
+                                </button>
+                                <div id="reports-delete-toolbar" style="display: none; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button class="btn secondary small" id="reports-select-all-btn"><i data-lucide="check-square"></i> Select All</button>
+                                    <button class="btn small" id="reports-delete-selected-btn" style="background: #ef4444; color: #ffffff; border: none;"><i data-lucide="trash-2"></i> Delete Selected (<span id="selected-reports-count">0</span>)</button>
+                                    <button class="btn outline small" id="reports-cancel-delete-btn"><i data-lucide="x"></i> Cancel</button>
+                                </div>
                             </div>
                         </div>
                         <div class="reports-scroll-container">
