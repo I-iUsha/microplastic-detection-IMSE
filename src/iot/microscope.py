@@ -19,50 +19,37 @@ def check_focus_quality(frame):
 
 def get_microscope_device():
     """
-    Attempt to find the microscope device index (usually /dev/video0 or /dev/video1).
-    Returns (index, backend) or (None, None) if none found.
+    Return verified microscope device index 0 with V4L2 backend.
     """
-    backends = [cv2.CAP_V4L2, cv2.CAP_ANY] if sys.platform.startswith('linux') else [cv2.CAP_ANY]
-    for backend in backends:
-        for index in range(4):
-            try:
-                cap = cv2.VideoCapture(index, backend)
-                if cap.isOpened():
-                    ret, frame = cap.read()
-                    cap.release()
-                    if ret and frame is not None and frame.size > 0:
-                        return index, backend
-            except Exception:
-                pass
-    return None, None
+    backend = cv2.CAP_V4L2 if sys.platform.startswith('linux') else cv2.CAP_ANY
+    return 0, backend
 
 def capture_image(output_dir=None, filename=None):
     """
     Capture a single frame from the microscope.
     Returns the file path of the captured image or None on failure.
     """
-    frame = None
-    backends = [cv2.CAP_V4L2, cv2.CAP_ANY] if sys.platform.startswith('linux') else [cv2.CAP_ANY]
+    backend = cv2.CAP_V4L2 if sys.platform.startswith('linux') else cv2.CAP_ANY
+    cap = cv2.VideoCapture(0, backend)
     
-    for backend in backends:
-        for idx in range(4):
-            try:
-                cap = cv2.VideoCapture(idx, backend)
-                if cap.isOpened():
-                    time.sleep(0.2)
-                    for _ in range(5):
-                        ret, test_frame = cap.read()
-                        if ret and test_frame is not None and test_frame.size > 0:
-                            frame = test_frame
-                            break
-                        time.sleep(0.05)
-                    cap.release()
-                    if frame is not None:
-                        break
-            except Exception:
-                pass
-        if frame is not None:
+    if not cap.isOpened():
+        cap.release()
+        cap = cv2.VideoCapture(0)
+        
+    if not cap.isOpened():
+        print("Error: Could not open microscope device at index 0.")
+        return None
+
+    # Read frame with sensor stabilization
+    frame = None
+    for _ in range(5):
+        ret, test_frame = cap.read()
+        if ret and test_frame is not None and test_frame.size > 0:
+            frame = test_frame
             break
+        time.sleep(0.05)
+        
+    cap.release()
 
     if frame is None:
         print("Error: Could not read frame from microscope.")
