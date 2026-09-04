@@ -28,15 +28,17 @@ def get_microscope_device():
             try:
                 cap = cv2.VideoCapture(index, backend)
                 if cap.isOpened():
+                    ret, frame = cap.read()
                     cap.release()
-                    return index, backend
+                    if ret and frame is not None and frame.size > 0:
+                        return index, backend
             except Exception:
                 pass
     return None, None
 
 def capture_image(output_dir=None, filename=None):
     """
-    Capture a single frame from the microscope directly in a single pass.
+    Capture a single frame from the microscope.
     Returns the file path of the captured image or None on failure.
     """
     frame = None
@@ -46,27 +48,17 @@ def capture_image(output_dir=None, filename=None):
         for idx in range(4):
             try:
                 cap = cv2.VideoCapture(idx, backend)
-                if not cap.isOpened():
+                if cap.isOpened():
+                    time.sleep(0.2)
+                    for _ in range(5):
+                        ret, test_frame = cap.read()
+                        if ret and test_frame is not None and test_frame.size > 0:
+                            frame = test_frame
+                            break
+                        time.sleep(0.05)
                     cap.release()
-                    continue
-                
-                # Configure USB camera format & resolution
-                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-                
-                # Allow sensor warm-up and grab clear frame
-                time.sleep(0.3)
-                for _ in range(6):
-                    ret, test_frame = cap.read()
-                    if ret and test_frame is not None and test_frame.size > 0:
-                        frame = test_frame
+                    if frame is not None:
                         break
-                    time.sleep(0.1)
-                    
-                cap.release()
-                if frame is not None:
-                    break
             except Exception:
                 pass
         if frame is not None:
@@ -79,6 +71,8 @@ def capture_image(output_dir=None, filename=None):
     is_focused, variance = check_focus_quality(frame)
     if not is_focused:
         print(f"Warning: Image might be blurry (Laplacian variance: {variance:.2f})")
+    else:
+        print(f"Focus quality check: SHARP (Laplacian variance: {variance:.2f})")
         
     if output_dir is None:
         output_dir = os.path.join(config.OUTPUTS_DIR, "field_results")
