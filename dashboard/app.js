@@ -72,9 +72,26 @@ let contaminationDonutChart, modelBarChartInstance, sizeBarChartInstance, trendL
 function parseTimestampToMs(ts, sampleId) {
     if (!ts && !sampleId) return 0;
     
+    // 1. Check if timestamp contains named months e.g. "04 September 2026 (19:57:37)" or "02 September 2026"
     if (ts) {
+        const cleanTs = String(ts).replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+        const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11 };
+        
+        const namedMonthMatch = cleanTs.match(/(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})(?:[,\s]+(\d{1,2}):(\d{1,2}):?(\d{1,2})?)?/);
+        if (namedMonthMatch) {
+            const day = parseInt(namedMonthMatch[1], 10);
+            const mStr = namedMonthMatch[2].toLowerCase().substring(0, 3);
+            const m = months[mStr] !== undefined ? months[mStr] : 8;
+            const y = parseInt(namedMonthMatch[3], 10);
+            const hr = namedMonthMatch[4] ? parseInt(namedMonthMatch[4], 10) : 12;
+            const min = namedMonthMatch[5] ? parseInt(namedMonthMatch[5], 10) : 0;
+            const sec = namedMonthMatch[6] ? parseInt(namedMonthMatch[6], 10) : 0;
+            const d = new Date(y, m, day, hr, min, sec);
+            if (!isNaN(d.getTime())) return d.getTime();
+        }
+
         // Handle DD/MM/YYYY, HH:MM:SS or DD-MM-YYYY HH:MM:SS
-        const dmyMatch = String(ts).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})[,\s]+(\d{1,2}):(\d{1,2}):?(\d{1,2})?/);
+        const dmyMatch = cleanTs.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})[,\s]+(\d{1,2}):(\d{1,2}):?(\d{1,2})?/);
         if (dmyMatch) {
             const day = parseInt(dmyMatch[1], 10);
             const month = parseInt(dmyMatch[2], 10) - 1;
@@ -87,23 +104,36 @@ function parseTimestampToMs(ts, sampleId) {
         }
 
         // Handle YYYY-MM-DD HH:MM:SS or standard ISO
-        const parsed = Date.parse(String(ts).replace(' ', 'T'));
+        const ymdMatch = cleanTs.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})[T\s]+(\d{1,2}):(\d{1,2}):?(\d{1,2})?/);
+        if (ymdMatch) {
+            const year = parseInt(ymdMatch[1], 10);
+            const month = parseInt(ymdMatch[2], 10) - 1;
+            const day = parseInt(ymdMatch[3], 10);
+            const hour = parseInt(ymdMatch[4], 10);
+            const min = parseInt(ymdMatch[5], 10);
+            const sec = ymdMatch[6] ? parseInt(ymdMatch[6], 10) : 0;
+            const d = new Date(year, month, day, hour, min, sec);
+            if (!isNaN(d.getTime())) return d.getTime();
+        }
+
+        const parsed = Date.parse(cleanTs);
         if (!isNaN(parsed)) return parsed;
     }
 
+    // 2. Check sampleId for timestamp patterns
     if (sampleId) {
+        const idStr = String(sampleId);
         // e.g. IOT_20260904_163215
-        const idMatch = String(sampleId).match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
+        const idMatch = idStr.match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
         if (idMatch) {
-            const d = new Date(idMatch[1], parseInt(idMatch[2], 10)-1, idMatch[3], idMatch[4], idMatch[5], idMatch[6]);
+            const d = new Date(parseInt(idMatch[1], 10), parseInt(idMatch[2], 10)-1, parseInt(idMatch[3], 10), parseInt(idMatch[4], 10), parseInt(idMatch[5], 10), parseInt(idMatch[6], 10));
             if (!isNaN(d.getTime())) return d.getTime();
         }
         // e.g. 2026-08-31T17-11-01
-        const isoMatch = String(sampleId).match(/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})/);
+        const isoMatch = idStr.match(/(\d{4})-(\d{2})-(\d{2})[T\s](\d{2})[-:](\d{2})[-:](\d{2})/);
         if (isoMatch) {
-            const cleaned = isoMatch[1].replace(/T(\d{2})-(\d{2})-(\d{2})/, 'T$1:$2:$3');
-            const d = Date.parse(cleaned);
-            if (!isNaN(d)) return d;
+            const d = new Date(parseInt(isoMatch[1], 10), parseInt(isoMatch[2], 10)-1, parseInt(isoMatch[3], 10), parseInt(isoMatch[4], 10), parseInt(isoMatch[5], 10), parseInt(isoMatch[6], 10));
+            if (!isNaN(d.getTime())) return d.getTime();
         }
     }
 
@@ -1001,7 +1031,22 @@ async function loadReports() {
 function extractReportTimestamp(report) {
     if (!report) return 0;
     
-    // 1. Try extracting Audit Timestamp / Audit Date from report markdown content
+    const repName = (report.name || '').replace('report_', '').replace('.md', '').trim();
+    
+    // 1. Cross-reference with rawFieldData if sample_id matches
+    if (Array.isArray(rawFieldData) && rawFieldData.length > 0) {
+        const matched = rawFieldData.find(d => {
+            if (!d.sample_id) return false;
+            const sid = String(d.sample_id).trim();
+            return sid === repName || repName.includes(sid) || sid.includes(repName);
+        });
+        if (matched) {
+            const t = parseTimestampToMs(matched.timestamp, matched.sample_id);
+            if (t > 0) return t;
+        }
+    }
+
+    // 2. Try extracting Audit Timestamp / Audit Date from report markdown content
     if (report.content) {
         const tsMatch = report.content.match(/\*\*(?:Audit Date|Audit Timestamp):\*\*\s*([^\n\r]+)/i);
         if (tsMatch) {
@@ -1011,7 +1056,7 @@ function extractReportTimestamp(report) {
         }
     }
     
-    // 2. Try parsing from report filename (e.g. report_IOT_20260904_163215.md)
+    // 3. Try parsing from report filename (e.g. report_IOT_20260904_163215.md)
     if (report.name) {
         const parsed = parseTimestampToMs('', report.name);
         if (parsed > 0) return parsed;
@@ -1020,8 +1065,9 @@ function extractReportTimestamp(report) {
     return 0;
 }
 
-function renderReportsGrid() {
+function renderReportsGrid(filterQuery = '') {
     const reportsGrid = document.getElementById('reports-grid');
+    const countBadge = document.getElementById('reports-count-badge');
     if (!reportsGrid) return;
 
     // Sort reports chronologically: Newest first!
@@ -1033,33 +1079,47 @@ function renderReportsGrid() {
         });
     }
 
-    if (!reportFiles || reportFiles.length === 0) {
+    if (countBadge) {
+        countBadge.textContent = `${reportFiles.length} Report${reportFiles.length === 1 ? '' : 's'}`;
+    }
+
+    const q = (typeof filterQuery === 'string' ? filterQuery : '').toLowerCase().trim();
+    const filtered = q 
+        ? reportFiles.filter(r => r.name.toLowerCase().includes(q) || (r.content && r.content.toLowerCase().includes(q)))
+        : reportFiles;
+
+    if (!filtered || filtered.length === 0) {
         reportsGrid.innerHTML = `
             <div class="report-empty-state">
                 <i data-lucide="file-search" style="width:48px;height:48px;opacity:0.3"></i>
-                <p>No reports found. Run an analysis to generate your first report.</p>
+                <p>${q ? 'No matching reports found.' : 'No reports found. Run an analysis to generate your first report.'}</p>
             </div>`;
         safeCreateIcons();
         return;
     }
 
     let html = '';
-    reportFiles.forEach((report, index) => {
+    filtered.forEach((report) => {
+        const originalIndex = reportFiles.indexOf(report);
         const displayName = report.name.replace('report_', '').replace('.md', '').replace(/_/g, ' ');
+        const timeMs = extractReportTimestamp(report);
+        const dateSubtext = timeMs > 0 ? formatDisplayTimestamp(new Date(timeMs).toISOString()) : 'Statutory Environmental Audit Report';
         
         html += `
             <div class="report-card">
-                <i data-lucide="file-text" class="report-icon"></i>
-                <h4>${displayName}</h4>
-                <p>Statutory Environmental Audit Report</p>
-                <div class="report-btns">
-                    <button class="btn primary small" onclick="viewReport(${index})">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <i data-lucide="file-text" class="report-icon" style="flex-shrink:0;"></i>
+                    <h4 style="margin:0;font-size:0.95rem;font-weight:600;color:var(--text-main);word-break:break-all;">${displayName}</h4>
+                </div>
+                <p style="margin:0;font-size:0.8rem;color:var(--text-muted);">${dateSubtext}</p>
+                <div class="report-btns" style="margin-top:auto;">
+                    <button class="btn primary small" onclick="viewReport(${originalIndex})">
                         <i data-lucide="eye"></i> View
                     </button>
-                    <button class="btn secondary small" onclick="exportGovernmentReportPDF(${index})">
+                    <button class="btn secondary small" onclick="exportGovernmentReportPDF(${originalIndex})">
                         <i data-lucide="file-check"></i> Gov PDF
                     </button>
-                    <button class="btn outline small" onclick="downloadReport(${index}, 'md')">
+                    <button class="btn outline small" onclick="downloadReport(${originalIndex}, 'md')">
                         <i data-lucide="download"></i> .md
                     </button>
                 </div>
@@ -1480,7 +1540,15 @@ document.getElementById('modal-download-txt')?.addEventListener('click', () => {
 });
 
 // Refresh reports button
-document.getElementById('refresh-reports-btn')?.addEventListener('click', loadReports);
+document.getElementById('refresh-reports-btn')?.addEventListener('click', () => loadReports());
+
+// ============================================================
+// REPORT SEARCH FILTER
+// ============================================================
+const reportSearchInput = document.getElementById('report-search-input');
+reportSearchInput?.addEventListener('input', (e) => {
+    renderReportsGrid(e.target.value);
+});
 
 // ============================================================
 // HISTORY SEARCH FILTER

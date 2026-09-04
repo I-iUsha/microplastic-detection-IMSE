@@ -210,9 +210,16 @@
                 <!-- Reports Section -->
                 <section id="reports" class="view-section">
                     <div class="card">
-                        <div class="section-header">
-                            <h3>Generated Environmental Reports</h3>
-                            <div class="report-actions-header">
+                        <div class="section-header" style="flex-wrap: wrap; gap: 1rem;">
+                            <div>
+                                <h3 style="margin-bottom: 0.25rem;">Generated Environmental Reports</h3>
+                                <span class="badge" id="reports-count-badge" style="background: rgba(14, 165, 233, 0.15); color: #0ea5e9; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px;">0 Reports</span>
+                            </div>
+                            <div class="report-actions-header" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                                <div class="search-box" style="margin: 0;">
+                                    <i data-lucide="search"></i>
+                                    <input type="text" id="report-search-input" placeholder="Search reports...">
+                                </div>
                                 <button class="btn secondary" id="refresh-reports-btn"><i data-lucide="refresh-cw"></i> Refresh</button>
                             </div>
                         </div>
