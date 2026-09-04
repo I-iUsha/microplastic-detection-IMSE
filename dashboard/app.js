@@ -1354,13 +1354,13 @@ function exportGovernmentReportPDF(index) {
             <div class="gov-figures-grid">
                 <div class="gov-figure-box">
                     <div class="gov-fig-img-placeholder" style="background:#0f172a; border-radius:4px; overflow:hidden;">
-                        <img src="${sampleImgSrc}" alt="Microscope Field Capture" style="width:100%;height:150px;object-fit:cover;display:block;">
+                        <img src="${sampleImgSrc}" alt="Microscope Field Capture" style="width:100%;height:150px;object-fit:cover;display:block;" onerror="if(this.src.includes('/valid/')){this.src=this.src.replace('/valid/','/train/');}">
                     </div>
                     <div class="gov-fig-caption">Figure 1.1: Raw Optical Microscope Capture (${sampleName})</div>
                 </div>
                 <div class="gov-figure-box">
                     <div class="gov-fig-img-placeholder" style="background:#0f172a; border-radius:4px; overflow:hidden;">
-                        <img src="${maskImgSrc}" alt="Neural Mask Overlay" style="width:100%;height:150px;object-fit:cover;display:block;">
+                        <img src="${maskImgSrc}" alt="Neural Mask Overlay" style="width:100%;height:150px;object-fit:cover;display:block;" onerror="if(this.src.includes('/valid/')){this.src=this.src.replace('/valid/','/train/');}">
                     </div>
                     <div class="gov-fig-caption">Figure 1.2: IMSE Segmentation Neural Mask (${selectedModel} Architecture)</div>
                 </div>
