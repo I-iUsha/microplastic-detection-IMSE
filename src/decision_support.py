@@ -56,9 +56,9 @@ def calculate_risk_score(particle_count: int, size_classification: dict, density
         norm_count * config.RISK_WEIGHTS['particle_count']
         + size_factor * config.RISK_WEIGHTS['size_distribution']
         + norm_density * config.RISK_WEIGHTS['density']
-    ) * 100
+    ) * 10  # Scale is 0–10 (matches dashboard contract)
 
-    return min(max(score, 0), 100)
+    return round(min(max(score, 0.0), 10.0), 2)
 
 
 def analyze_trends(history_file: str) -> dict:

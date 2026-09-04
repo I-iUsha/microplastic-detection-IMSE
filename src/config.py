@@ -15,6 +15,17 @@ VALID_DIR = os.path.join(DATASET_DIR, "valid")
 TRAIN_ANNOTATIONS = os.path.join(TRAIN_DIR, "_annotations.csv")
 VALID_ANNOTATIONS = os.path.join(VALID_DIR, "_annotations.csv")
 
+# ─── GPS Fallback Configuration ────────────────────────────────────────────────
+# Used when the NEO-6M GPS module is not detected.
+# Change this to your actual field deployment coordinates.
+GPS_FALLBACK_LOCATION = {
+    'lat': 17.3850,       # Hyderabad, Telangana (matches mock GPS in gps_reader.py)
+    'lon': 78.4867,
+    'altitude': 542.0,
+    'satellites': 0,      # 0 = no real satellite fix
+    'is_fallback': True   # Flag so dashboard can mark data as estimated
+}
+
 # ─── Output Paths ───────────────────────────────────────────────────────────────
 OUTPUTS_DIR = os.path.join(PROJECT_ROOT, "outputs")
 MASKS_DIR = os.path.join(OUTPUTS_DIR, "masks")

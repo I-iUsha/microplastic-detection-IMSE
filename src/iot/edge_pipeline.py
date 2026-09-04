@@ -53,12 +53,13 @@ def process_capture(mock_hardware=False):
             print("No fallback image found in dataset. Aborting capture.")
             return None
             
-    # 2. Read GPS (Real NEO-6M or mock coordinates)
+    # 2. Read GPS (Real NEO-6M or fallback from config)
     gps_data = get_gps_location(mock=mock_hardware)
     if not gps_data or gps_data.get('lat') is None:
-        # Fallback coordinates for demonstration
-        gps_data = {'lat': 28.7041, 'lon': 77.1025, 'altitude': 216.0, 'satellites': 6, 'timestamp': dt_str}
-        
+        gps_data = dict(config.GPS_FALLBACK_LOCATION)  # Use configurable fallback
+        gps_data['timestamp'] = dt_str
+        print(f"GPS not detected — using fallback location: ({gps_data['lat']}, {gps_data['lon']})")
+
     # 3 & 4. Run Inference (IMSE + Quantification)
     print("Running IMSE inference on edge...")
     mask_path = os.path.join(out_dir, f"mask_{dt_str}.png")
@@ -94,15 +95,20 @@ def process_capture(mock_hardware=False):
         'sample_id': sample_id,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'gps': gps_data,
+        'gps_is_fallback': gps_data.get('is_fallback', False),  # True = estimated location
         'model_selected': results['selected_model'],
         'confidence': float(results['confidence']),
         'particle_count': count,
         'total_area': float(overall_stats['total_area']),
-        'risk_score': float(risk_score),
+        'risk_score': float(risk_score),          # Always 0-10 (from calculate_risk_score)
         'contamination_level': contamination_level,
         'image_file': img_filename,
         'mask_file': f"mask_{dt_str}.png",
-        'report_file': f"report_{sample_id}.md"
+        'report_file': f"report_{sample_id}.md",
+        # Web-accessible paths relative to project root (for dashboard fetch)
+        'image_url': f"outputs/field_results/{img_filename}",
+        'mask_url': f"outputs/field_results/mask_{dt_str}.png",
+        'report_url': f"outputs/reports/report_{sample_id}.md",
     }
     
     # Save individual JSON

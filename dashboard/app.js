@@ -56,6 +56,7 @@ let mapData = [...demoCities];
 let rawFieldData = [];
 let isLiveData = false;
 let reportFiles = [];
+let lastFieldDataEtag = null; // For change-detection polling
 
 // Chart references for dynamic updates
 let contaminationDonutChart, modelBarChartInstance, sizeBarChartInstance, trendLineChartInstance, modelPieChartInstance;
@@ -95,42 +96,59 @@ async function loadFieldResults() {
             name: d.sample_id ? `Sample ${d.sample_id}` : `Sample ${d.timestamp || ''}`,
             lat: d.gps.lat,
             lng: d.gps.lon,
-            risk: (d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 0).toFixed(1),
+            risk: parseFloat((d.risk_score || 0).toFixed(1)),
             parts: d.particle_count || 0,
-            model: d.model_selected || 'IMSE'
+            model: d.model_selected || 'IMSE',
+            isFallbackGPS: d.gps_is_fallback || false
         }));
         recentResults = fieldData.map((d, i) => ({
             id: d.sample_id ? (d.sample_id.length > 20 ? d.sample_id.substring(0, 20) + '...' : d.sample_id) : `FLD-${String(i+1).padStart(3,'0')}`,
             fullId: d.sample_id || `FLD-${String(i+1).padStart(3,'0')}`,
             timestamp: d.timestamp || new Date().toISOString().split('T')[0],
-            loc: `${d.gps?.lat ? d.gps.lat.toFixed(4) : '17.4913'}°N, ${d.gps?.lon ? d.gps.lon.toFixed(4) : '78.3416'}°E`,
+            loc: `${d.gps?.lat ? d.gps.lat.toFixed(4) : '17.4913'}°N, ${d.gps?.lon ? d.gps.lon.toFixed(4) : '78.3416'}°E${d.gps_is_fallback ? ' ⚠ Est.' : ''}`,
             parts: d.particle_count || 0,
-            risk: (d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 0).toFixed(1),
+            risk: parseFloat((d.risk_score || 0).toFixed(1)),
             model: d.model_selected || 'LinkNet',
             confidence: d.confidence ? (d.confidence * 100).toFixed(1) + '%' : '72.0%',
-            status: (d.contamination_level === 'High' || d.contamination_level === 'Critical') ? 'high' : d.contamination_level === 'Moderate' ? 'med' : 'low'
+            status: (d.contamination_level === 'High' || d.contamination_level === 'Critical') ? 'high' : d.contamination_level === 'Moderate' ? 'med' : 'low',
+            image_url: d.image_url || null,
+            mask_url: d.mask_url || null,
+            report_url: d.report_url || null
         }));
 
         updateKPIs(fieldData);
         updateNotifications(fieldData);
         updateChartsWithLiveData(fieldData);
 
-        // Auto-inject live field samples into reports viewer
-        fieldData.forEach(d => {
+        // Auto-inject live field samples into reports viewer (using real report_url first)
+        await Promise.all(fieldData.map(async (d) => {
             const reportName = `report_${d.sample_id || 'IOT_field'}.md`;
-            if (!reportFiles.some(r => r.name === reportName)) {
-                const liveReportContent = `# Statutory Environmental Microplastic Assessment Report
+            if (reportFiles.some(r => r.name === reportName)) return;
+
+            let reportContent = null;
+
+            // Try fetching the real .md file written by the Pi
+            if (d.report_url) {
+                try {
+                    const rRes = await fetch('/' + d.report_url + '?t=' + Date.now());
+                    if (rRes.ok) reportContent = await rRes.text();
+                } catch(e) { /* fallback below */ }
+            }
+
+            // Fallback: inline-generate from JSON fields (no file access needed)
+            if (!reportContent) {
+                reportContent = `# Statutory Environmental Microplastic Assessment Report
 **Sample ID:** ${d.sample_id || 'IOT_Field_Sample'}  
 **Audit Timestamp:** ${d.timestamp || new Date().toLocaleString()}  
 **Monitoring Station:** Station 01 — IoT Edge Field Deployment  
-**Geographic Coordinates:** ${d.gps?.lat ? d.gps.lat.toFixed(6) : '17.491303'}° N, ${d.gps?.lon ? d.gps.lon.toFixed(6) : '78.341658'}° E (Hyderabad, Telangana, India)  
+**Geographic Coordinates:** ${d.gps?.lat ? d.gps.lat.toFixed(6) : '17.491303'}° N, ${d.gps?.lon ? d.gps.lon.toFixed(6) : '78.341658'}° E${d.gps_is_fallback ? ' *(estimated — GPS not detected)*' : ''}  
 **Selected AI Model:** ${d.model_selected || 'LinkNet'} (Confidence: ${d.confidence ? (d.confidence * 100).toFixed(1) : '72.0'}%)  
 
 ---
 
 ## 1.0 Executive Statutory Summary
 - **Contamination Classification:** ${d.contamination_level || 'Low'}
-- **Environmental Risk Severity Index:** ${(d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 0).toFixed(1)} / 10
+- **Environmental Risk Severity Index:** ${parseFloat(d.risk_score || 0).toFixed(1)} / 10
 - **Total Particles Quantified:** ${d.particle_count || 0}
 - **Total Area Coverage:** ${(d.total_area || 0).toFixed(2)} px²
 - **Dominant Morphology:** Polymeric microfibers and environmental fragment particulates
@@ -144,12 +162,10 @@ async function loadFieldResults() {
 - **Particle Feature Density:** ${d.features?.particle_density ? Number(d.features.particle_density).toFixed(2) : '1.00'}
 - **Canny Edge Density:** ${d.features?.edge_density ? Number(d.features.edge_density).toFixed(4) : '0.0021'}
 `;
-                reportFiles.unshift({
-                    name: reportName,
-                    content: liveReportContent
-                });
             }
-        });
+
+            reportFiles.unshift({ name: reportName, content: reportContent });
+        }));
         renderReportsGrid();
     } else {
         console.log('No live field results found on server, using demo baseline');
@@ -166,20 +182,21 @@ function updateKPIs(fieldData) {
     const avgRiskEl = document.getElementById('kpi-avg-risk');
     const accuracyEl = document.getElementById('kpi-accuracy');
 
-    if (!fieldData || fieldData.length === 0) return;
+    if (fieldData && fieldData.length > 0) {
+        const totalAnalyses = fieldData.length;
+        const totalParticles = fieldData.reduce((acc, d) => acc + (d.particle_count || 0), 0);
+        const avgRiskRaw = fieldData.reduce((acc, d) => acc + (d.risk_score || 0), 0) / totalAnalyses;
+        // risk_score is always 0-10 now; no division needed
+        const avgRisk = avgRiskRaw.toFixed(1);
+        const avgConf = (fieldData.reduce((acc, d) => acc + (d.confidence || 0.604), 0) / totalAnalyses * 100).toFixed(1);
 
-    const totalAnalyses = fieldData.length;
-    const totalParticles = fieldData.reduce((acc, d) => acc + (d.particle_count || 0), 0);
-    const avgRiskRaw = fieldData.reduce((acc, d) => acc + (d.risk_score || 0), 0) / totalAnalyses;
-    const avgRisk = (avgRiskRaw > 10 ? avgRiskRaw / 10 : avgRiskRaw).toFixed(1);
-    
-    const avgConf = (fieldData.reduce((acc, d) => acc + (d.confidence || 0.604), 0) / totalAnalyses * 100).toFixed(1);
-
-    if (totalAnalysesEl) totalAnalysesEl.textContent = totalAnalyses.toLocaleString();
-    if (totalParticlesEl) totalParticlesEl.textContent = totalParticles.toLocaleString();
-    if (avgRiskEl) avgRiskEl.textContent = `${avgRisk}/10`;
-    if (accuracyEl) accuracyEl.textContent = `${avgConf}%`;
+        if (totalAnalysesEl) totalAnalysesEl.textContent = totalAnalyses.toLocaleString();
+        if (totalParticlesEl) totalParticlesEl.textContent = totalParticles.toLocaleString();
+        if (avgRiskEl) avgRiskEl.textContent = `${avgRisk}/10`;
+        if (accuracyEl) accuracyEl.textContent = `${avgConf}%`;
+    }
 }
+
 
 function updateNotifications(fieldData) {
     const notifList = document.getElementById('notification-list');
@@ -193,7 +210,7 @@ function updateNotifications(fieldData) {
         const sampleName = d.sample_id ? (d.sample_id.length > 18 ? d.sample_id.substring(0, 18) + '...' : d.sample_id) : `Sample #${idx+1}`;
         const model = d.model_selected || 'UNet';
         const count = d.particle_count || 0;
-        const risk = (d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 0).toFixed(1);
+        const risk = parseFloat((d.risk_score || 0).toFixed(1));
 
         html += `
             <div class="notification-item unread">
@@ -395,8 +412,8 @@ function updateChartsWithLiveData(fieldData) {
         else modelCounts['UNet']++;
 
         trendLabels.push(`Run ${idx+1}`);
-        const r = d.risk_score ? (d.risk_score > 10 ? d.risk_score / 10 : d.risk_score) : 5.0;
-        trendScores.push(parseFloat(r.toFixed(1)));
+        const r = parseFloat((d.risk_score || 5.0).toFixed(1)); // Already 0-10
+        trendScores.push(r);
     });
 
     if (contaminationDonutChart) {
@@ -470,6 +487,7 @@ function initMap() {
         let riskVal = parseFloat(city.risk) || 5.0;
         let fillColor = riskVal > 7 ? '#ef4444' : riskVal > 4 ? '#f59e0b' : '#10b981';
         let statusLabel = riskVal > 7 ? 'Critical / Exceeds Threshold' : riskVal > 4 ? 'Moderate / Monitored' : 'Compliant / Low Hazard';
+        const gpsNote = city.isFallbackGPS ? '<br><span style="color:#f59e0b;font-size:10px;">⚠ GPS estimated — hardware not detected</span>' : '';
 
         // 1. Heatmap Data Points
         heatData.push([city.lat, city.lng, riskVal * 20]);
@@ -487,7 +505,7 @@ function initMap() {
                 <strong style="font-size:14px; color:#0284c7;">${city.name}</strong><br>
                 <strong>Particles:</strong> ${city.parts}<br>
                 <strong>Risk Score:</strong> ${riskVal}/10<br>
-                <strong>Model:</strong> <span style="color:#0ea5e9;font-weight:600">${city.model || 'UNet'}</span>
+                <strong>Model:</strong> <span style="color:#0ea5e9;font-weight:600">${city.model || 'UNet'}</span>${gpsNote}
             </div>
         `);
         markers.push(marker);
@@ -1340,3 +1358,37 @@ initMap();
 loadFieldResults();
 loadReports();
 lucide.createIcons();
+
+// ============================================================
+// AUTO-POLLING — Refresh live field results every 30 seconds
+// ============================================================
+const POLL_INTERVAL_MS = 30000;
+const liveIndicator = document.createElement('div');
+liveIndicator.id = 'live-poll-indicator';
+liveIndicator.style.cssText = `
+    position: fixed; bottom: 18px; right: 18px;
+    background: #0f172a; border: 1px solid #334155;
+    color: #94a3b8; font-size: 11px; font-family: 'Inter', sans-serif;
+    padding: 6px 12px; border-radius: 20px;
+    display: flex; align-items: center; gap: 6px;
+    z-index: 9999; opacity: 0.85;
+    transition: opacity 0.3s;
+`;
+liveIndicator.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;"></span> Live &bull; syncs every 30s`;
+document.body.appendChild(liveIndicator);
+
+setInterval(async () => {
+    const dot = liveIndicator.querySelector('span');
+    if (dot) { dot.style.background = '#f59e0b'; } // amber = fetching
+
+    const prevCount = rawFieldData.length;
+    await loadFieldResults();
+
+    if (dot) {
+        const hasNew = rawFieldData.length > prevCount;
+        dot.style.background = hasNew ? '#0ea5e9' : '#22c55e'; // blue = new data, green = up to date
+        liveIndicator.title = hasNew
+            ? `${rawFieldData.length - prevCount} new capture(s) loaded at ${new Date().toLocaleTimeString()}`
+            : `Last synced: ${new Date().toLocaleTimeString()}`;
+    }
+}, POLL_INTERVAL_MS);
