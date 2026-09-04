@@ -51,7 +51,7 @@ def generate_hardware_report():
     
     # Test Microscope
     report_lines.append("\n[Microscope Test]")
-    cam_idx = get_microscope_device()
+    cam_idx, _ = get_microscope_device()
     if cam_idx is not None:
         report_lines.append(f"Microscope detected at index {cam_idx}")
         img_path = capture_image(filename="test_capture.jpg")

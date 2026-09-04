@@ -20,38 +20,53 @@ def check_focus_quality(frame):
 def get_microscope_device():
     """
     Attempt to find the microscope device index (usually /dev/video0 or /dev/video1).
-    Returns the first working index or None if none found.
+    Returns (index, backend) or (None, None) if none found.
     """
-    for index in range(5):
-        cap = cv2.VideoCapture(index)
-        if cap.isOpened():
-            ret, frame = cap.read()
-            if ret and frame is not None:
-                cap.release()
-                return index
-            cap.release()
-    return None
+    backends = [cv2.CAP_V4L2, cv2.CAP_ANY] if sys.platform.startswith('linux') else [cv2.CAP_ANY]
+    for backend in backends:
+        for index in range(4):
+            try:
+                cap = cv2.VideoCapture(index, backend)
+                if cap.isOpened():
+                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                    time.sleep(0.2)
+                    for _ in range(3):
+                        ret, frame = cap.read()
+                    if ret and frame is not None and frame.size > 0:
+                        cap.release()
+                        return index, backend
+                    cap.release()
+            except Exception:
+                pass
+    return None, None
 
 def capture_image(output_dir=None, filename=None):
     """
-    Capture a single frame at 1080p resolution.
+    Capture a single frame from the microscope.
     Returns the file path of the captured image or None on failure.
     """
-    device_index = get_microscope_device()
+    device_index, backend = get_microscope_device()
     if device_index is None:
         print("Warning: No microscope device detected.")
         return None
 
-    cap = cv2.VideoCapture(device_index)
+    cap = cv2.VideoCapture(device_index, backend if backend is not None else cv2.CAP_ANY)
     
-    # Set to 1080p
+    # Configure USB UVC Camera parameters
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     
-    # Auto-exposure / white balance (depends on driver, some OpenCV versions ignore this)
-    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75) 
-    
-    ret, frame = cap.read()
+    # Allow sensor auto-exposure to stabilize
+    time.sleep(0.3)
+    frame = None
+    ret = False
+    for _ in range(5):
+        ret, frame = cap.read()
+        if ret and frame is not None and frame.size > 0:
+            break
+        time.sleep(0.1)
+        
     cap.release()
     
     if not ret or frame is None:
